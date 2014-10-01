@@ -4,12 +4,15 @@
 #include <stdio.h>
 
 #define RUN(name)                                                             \
-  extern void test_ ## name(void);                                            \
-  printf("Testing " #name "... ");                                            \
-  test_ ## name();                                                            \
-  printf("passed.")
+  extern void group_ ## name(void);                                           \
+  printf("> Group " #name ": \n");                                            \
+  group_ ## name();                                                           \
+
+#define GROUP(name)                                                           \
+  void group_ ## name(void)                                                   \
 
 #define TEST(name)                                                            \
-  void test_ ## name(void)                                                    \
+  printf(">>> Testing " #name "...\n");                                       \
+  if (1)
 
 #endif

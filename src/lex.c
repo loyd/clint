@@ -39,7 +39,6 @@ static enum token_e find_kw(const char *word, int len) {
   return res ? res->code : TOK_UNKNOWN;
 }
 
-
 static enum token_e find_pp(const char *word, int len) {
   assert(word);
   assert(len > 0);
@@ -125,13 +124,20 @@ static bool numeric_const(token_t *token) {
   if (!(isdigit(*ch) || *ch == '.'))
     return false;
 
+  bool is_float = false;
+
   while (isxdigit(*ch)) ++ch;
   if (tolower(*ch) == 'x') ++ch;
   while (isxdigit(*ch)) ++ch;
-  if (*ch == '.') ++ch;
-  while (isxdigit(*ch)) ++ch;
-  if (tolower(*ch) == 'e' || tolower(*ch) == 'p') {
+
+  if (*ch == '.') {
+    is_float = true;
     ++ch;
+  }
+
+  while (isxdigit(*ch)) ++ch;
+  if (tolower(*ch) == 'p') ++ch;
+  if (is_float && (tolower(ch[-1]) == 'e' || tolower(ch[-1]) == 'p')) {
     if (*ch == '+' || *ch == '-') ++ch;
     while (isdigit(*ch)) ++ch;
   }
@@ -208,11 +214,9 @@ static bool identifier(token_t *token) {
 
   char *start = ch;
 
-  do {
-    ch += ch[1] == 'u' ? 6
-        : ch[1] == 'U' ? 10
-                       : 1;
-  } while (isalnum(*ch) || *ch == '_' || check_ucn());
+  do
+    ch += *ch == '\\' ? (ch[1] == 'u' ? 6 : 10) : 1;
+  while (isalnum(*ch) || *ch == '_' || check_ucn());
 
   if (parsing_pp_directive) {
     token->kind = find_pp(start, ch-start);
@@ -311,15 +315,17 @@ static bool punctuator(token_t *token) {
   }
 
   ch += strlen(stringify_kind(kind));
+
   token->kind = kind;
   return true;
 }
 
 
 static bool comment(token_t *token) {
-  assert(*ch == '/');
+  if (!(*ch == '/' && (ch[1] == '*' || ch[1] == '/')))
+    return false;
+
   ++ch;
-  assert(*ch == '*' || *ch == '/');
 
   if (*ch == '*') {
     if (!(*++ch && *++ch)) return false;
@@ -333,7 +339,8 @@ static bool comment(token_t *token) {
     if (*ch == '\n') newline();
   }
 
-  ++ch;
+  if (*ch) ++ch;
+
   token->kind = TOK_COMMENT;
   return true;
 }
@@ -348,9 +355,11 @@ static bool header_name(token_t *token) {
     return false;
 
   int expected = *ch == '<' ? '>' : '"';
-  while (*++ch != expected);
+  while (*ch && *++ch != expected);
 
   ++ch;
+
+  token->kind = TOK_HEADER_NAME;
   return true;
 }
 

@@ -1,8 +1,7 @@
 #include "helper.h"
 
 int main(void) {
-  RUN(lex);
+  RUN(lexer);
 
-  printf("\n");
   return 0;
 }
