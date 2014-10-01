@@ -5,6 +5,7 @@
 #include "clint.h"
 #include "helper.h"
 
+
 typedef enum token_e T[];
 
 #define check(input, exp) _check(input, exp, sizeof(exp)/sizeof(*exp))

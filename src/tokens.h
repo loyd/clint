@@ -13,7 +13,7 @@
   TOK_PP_MAP(XX)                                                              \
   TOK_PN_MAP(XX)
 
-// C99 6.4.1: keywords.
+// C99 6.4.1: Keywords.
 #define TOK_KW_MAP(XX)                                                        \
   XX(KW_AUTO, "auto")                                                         \
   XX(KW_BREAK, "break")                                                       \
@@ -53,7 +53,7 @@
   XX(KW_COMPLEX, "_Complex")                                                  \
   XX(KW_IMAGINARY, "_Imaginary")
 
-// C99 6.10: preprocessor.
+// C99 6.10: Preprocessor.
 #define TOK_PP_MAP(XX)                                                        \
   XX(PP_IF, "if")                                                             \
   XX(PP_IFDEF, "ifdef")                                                       \
@@ -68,7 +68,7 @@
   XX(PP_ERROR, "error")                                                       \
   XX(PP_PRAGMA, "pragma")
 
-// C99 6.4.6: punctuators.
+// C99 6.4.6: Punctuators.
 //#TODO: add support for trigraphs.
 #define TOK_PN_MAP(XX)                                                        \
   XX(PN_LSQUARE, "[")                                                         \
