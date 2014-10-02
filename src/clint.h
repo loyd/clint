@@ -33,9 +33,20 @@ typedef struct {
 } file_t;
 
 
+/* Memory management.
+ */
 extern void *xmalloc(size_t size);
 extern void *xrealloc(void *ptr, size_t size);
 
+
+/* Logging.
+ */
+extern void warn_at(file_t *file, int line, int column, const char *format, ...)
+  __attribute__((format(printf, 4, 5)));
+
+
+/* Lexer.
+ */
 extern void lex_init(file_t *file);
 extern bool lex_pull(token_t *token);
 extern const char *lex_to_str(token_t *token);
