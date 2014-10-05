@@ -41,6 +41,9 @@ extern void *xrealloc(void *ptr, size_t size);
 
 /* Logging.
  */
+extern void warn_resume(void);
+extern void warn_pause(void);
+
 extern void *warn_at(file_t *file, int line, int column, const char *fmt, ...)
   __attribute__((format(printf, 4, 5)));
 

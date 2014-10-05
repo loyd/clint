@@ -53,12 +53,19 @@ static inline int get_line_len(file_t *file, int line) {
 #define FILENAME_STYLE  "\x1b[32;1m"
 #define NORMAL_STYLE    "\x1b[0m"
 
+static bool flowing = true;
+void warn_resume(void) { flowing = true; }
+void warn_pause(void) { flowing = false; }
+
+
 void *warn_at(file_t *file, int line, int column, const char *format, ...) {
   assert(file && format);
   assert(0 < line && line <= file->nlines);
 
   int line_len = get_line_len(file, line);
   assert(0 < column && column <= line_len + 1);
+
+  if (!flowing) return NULL;
 
   va_list arg;
   int line_from = line-2;
