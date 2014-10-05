@@ -21,6 +21,10 @@ static bool parsing_header_name;
 static bool parsing_pp_directive;
 
 
+#define warn(...)                                                             \
+  warn_at(fp, fp->nlines, ch-fp->lines[fp->nlines]+1, __VA_ARGS__)
+
+
 void lex_init(file_t *file) {
   assert(file);
   assert(file->data);
@@ -126,9 +130,7 @@ static inline void skip_spaces(void) {
  */
 static bool numeric_const(token_t *token) {
   assert(token);
-
-  if (!(isdigit(*ch) || *ch == '.'))
-    return false;
+  assert(isdigit(*ch) || *ch == '.');
 
   bool is_float = false;
 
@@ -159,14 +161,19 @@ static bool numeric_const(token_t *token) {
 /* C99 6.4.4.4: Character constants.
  */
 static bool char_const(token_t *token) {
-  //#TODO: unexpected EOB handling.
   assert(token);
-
-  if (!(*ch == '\'' ||  *ch == 'L' && ch[1] == '\''))
-    return false;
+  assert(*ch == '\'' ||  *ch == 'L' && ch[1] == '\'');
 
   ch += *ch == 'L' ? 2 : 1;
-  while (*ch != '\'' || ch[-1] == '\\') ++ch;
+  while (*ch && *ch != '\n' && *ch != '\'') {
+    if (*ch == '\\') ++ch;
+    if (*ch) ++ch;
+  }
+
+  if (*ch != '\'')
+    return warn("Unexpected %s while parsing character constant",
+                *ch ? "newline" : "EOB");
+
   ++ch;
 
   token->kind = TOK_CHAR_CONST;
@@ -177,14 +184,19 @@ static bool char_const(token_t *token) {
 /* C99 6.4.5: String literals.
  */
 static bool string_literal(token_t *token) {
-  //#TODO: unexpected EOB handling.
   assert(token);
-
-  if(!(*ch == '"' ||  *ch == 'L' && ch[1] == '"'))
-    return false;
+  assert(*ch == '"' ||  *ch == 'L' && ch[1] == '"');
 
   ch += *ch == 'L' ? 2 : 1;
-  while (*ch != '"' || ch[-1] == '\\') ++ch;
+  while (*ch && *ch != '\n' && *ch != '"') {
+    if (*ch == '\\') ++ch;
+    if (*ch) ++ch;
+  }
+
+  if (*ch != '"')
+    return warn("Unexpected %s while parsing string literal",
+                *ch ? "newline" : "EOB");
+
   ++ch;
 
   token->kind = TOK_STRING;
@@ -217,9 +229,7 @@ static bool check_ucn(void) {
  */
 static bool identifier(token_t *token) {
   assert(token);
-
-  if (!(isalpha(*ch) || *ch == '_' || check_ucn()))
-    return false;
+  assert(isalpha(*ch) || *ch == '_' || check_ucn());
 
   char *start = ch;
 
@@ -266,7 +276,7 @@ static bool punctuator(token_t *token) {
     case ';': kind = PN_SEMI; break;
     case ',': kind = PN_COMMA; break;
 
-    case '!': kind = ch[1] == '=' ? PN_EXCLAIM : PN_EXCLAIMEQ; break;
+    case '!': kind = ch[1] == '=' ? PN_EXCLAIMEQ : PN_EXCLAIM; break;
     case '/': kind = ch[1] == '=' ? PN_SLASHEQ : PN_SLASH; break;
     case '%': kind = ch[1] == '=' ? PN_PERCENTEQ : PN_PERCENT; break;
     case '^': kind = ch[1] == '=' ? PN_CARETEQ : PN_CARET; break;
@@ -322,7 +332,7 @@ static bool punctuator(token_t *token) {
       break;
 
     default:
-      return false;
+      assert(0);
   }
 
   ch += strlen(stringify_kind(kind));
@@ -336,26 +346,25 @@ static bool punctuator(token_t *token) {
  */
 static bool comment(token_t *token) {
   assert(token);
+  assert(*ch == '/' && (ch[1] == '*' || ch[1] == '/'));
 
-  if (!(*ch == '/' && (ch[1] == '*' || ch[1] == '/')))
-    return false;
+  ch += 2;
 
-  ++ch;
+  if (ch[-1] == '*') {
+    if (*ch == '/') ++ch;
 
-  if (*ch == '*') {
-    //#TODO: unexpected EOB handling.
-    if (!(*++ch && *++ch)) return false;
+    while (*ch && !(ch[-1] == '*' && *ch == '/'))
+      if (*ch == '\n')
+        newline();
+      else
+        ++ch;
 
-    while (*ch && !(ch[-1] == '*' && *ch == '/')) {
-      if (*ch == '\n') newline();
-      ++ch;
-    }
-  } else {
+    if (!*ch)
+      return warn("Unexpected EOB while parsing comment");
+
+    ++ch;
+  } else
     while (*ch && *ch != '\n') ++ch;
-    if (*ch == '\n') newline();
-  }
-
-  if (*ch) ++ch;
 
   token->kind = TOK_COMMENT;
   return true;
@@ -365,14 +374,15 @@ static bool comment(token_t *token) {
 /* C99 6.4.7: Header names.
  */
 static bool header_name(token_t *token) {
-  //#TODO: unexpected EOB handling.
   assert(token);
-
-  if (!(*ch == '<' || *ch == '"'))
-    return false;
+  assert(*ch == '<' || *ch == '"');
 
   int expected = *ch == '<' ? '>' : '"';
-  while (*ch && *++ch != expected);
+  do ++ch; while (*ch && *ch != '\n' && *ch != expected);
+
+  if (*ch != expected)
+    return warn("Unexpected %s while parsing header name",
+                *ch ? "newline" : "EOB");
 
   ++ch;
 
@@ -384,18 +394,16 @@ static bool header_name(token_t *token) {
 bool lex_pull(token_t *token) {
   assert(token);
 
-  bool success = false;
-
+  bool success;
   skip_spaces();
+
+  // EOB.
+  if (!*ch) return false;
 
   token->start.line = fp->nlines;
   token->start.column = ch - fp->lines[fp->nlines] + 1;
 
   switch (*ch) {
-    // EOB.
-    case '\0':
-      break;
-
     // Numbers.
     case '0': case '1': case '2': case '3': case '4':
     case '5': case '6': case '7': case '8': case '9':
@@ -475,14 +483,17 @@ bool lex_pull(token_t *token) {
 
     // C99 C99 6.4.3: universal character name.
     case '\\':
-      if (check_ucn())
+      if (check_ucn()) {
         success = identifier(token);
+        break;
+      }
 
-      break;
+      // Fallthrough.
 
     default:
       ++ch;
       success = false;
+      break;
   }
 
   if (!success)
@@ -491,7 +502,7 @@ bool lex_pull(token_t *token) {
   token->end.line = fp->nlines;
   token->end.column = ch - fp->lines[fp->nlines];
 
-  return success;
+  return true;
 }
 
 

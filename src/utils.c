@@ -40,8 +40,10 @@ static inline int get_line_len(file_t *file, int line) {
   assert(file);
   assert(0 < line && line <= file->nlines);
 
-  if (line == file->nlines)
-    return strlen(file->lines[line]);
+  if (line == file->nlines) {
+    char *nl = strchr(file->lines[line], '\n');
+    return nl ? nl - file->lines[line] : strlen(file->lines[line]);
+  }
 
   return file->lines[line+1] - file->lines[line] - 1;
 }
@@ -51,11 +53,12 @@ static inline int get_line_len(file_t *file, int line) {
 #define FILENAME_STYLE  "\x1b[32;1m"
 #define NORMAL_STYLE    "\x1b[0m"
 
-
-void warn_at(file_t *file, int line, int column, const char *format, ...) {
-  assert(file);
-  assert(format);
+void *warn_at(file_t *file, int line, int column, const char *format, ...) {
+  assert(file && format);
   assert(0 < line && line <= file->nlines);
+
+  int line_len = get_line_len(file, line);
+  assert(0 < column && column <= line_len + 1);
 
   va_list arg;
   int line_from = line-2;
@@ -64,10 +67,7 @@ void warn_at(file_t *file, int line, int column, const char *format, ...) {
   if (line_from < 1) line_from = 1;
   if (line_to > file->nlines) line_to = file->nlines;
 
-  int line_len = get_line_len(file, line);
   int line_width = count_signs(line_to);
-
-  assert(0 < column && column <= line_len);
 
   char pointer[column + line_width + 6];
   memset(pointer, '-', sizeof(pointer) - 2);
@@ -90,4 +90,8 @@ void warn_at(file_t *file, int line, int column, const char *format, ...) {
     if (i == line)
       fprintf(stderr, "%s\n", pointer);
   }
+
+  fprintf(stderr, "\n");
+
+  return NULL;
 }
