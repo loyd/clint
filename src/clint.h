@@ -1,5 +1,10 @@
-#ifndef CLINT_H
-#define CLINT_H
+/*!
+ * @mainpage
+ * @brief The main header file.
+ */
+
+#ifndef __CLINT_H__
+#define __CLINT_H__
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -10,48 +15,58 @@
 
 enum token_e {
 #define XX(kind, word) kind,
-  TOK_MAP(XX)
+    TOK_MAP(XX)
 #undef XX
 };
 
 
 typedef struct {
-  enum token_e kind;
+    enum token_e kind;
 
-  struct {
-    int line;    // 1-indexed
-    int column;  // 1-indexed
-  } start, end;
+    struct {
+        int line;    //!< 1-indexed
+        int column;  //!< 1-indexed
+    } start, end;
 } token_t;
 
 
 typedef struct {
-  char *name;
-  char *data;
-  char **lines;  // 1-indexed
-  int nlines;
+    char *name;
+    char *data;
+    char **lines;  //!< 1-indexed
+    int nlines;
 } file_t;
 
 
-/* Memory management.
+/*!
+ * @name Memory management
+ * Never return `NULL`.
  */
+//!@{
 extern void *xmalloc(size_t size);
 extern void *xrealloc(void *ptr, size_t size);
+//!@}
 
 
-/* Logging.
+/*!
+ * @name Logging
  */
+//!@{
 extern void warn_resume(void);
 extern void warn_pause(void);
 
 extern void *warn_at(file_t *file, int line, int column, const char *fmt, ...)
   __attribute__((format(printf, 4, 5)));
+//!@}
 
 
-/* Lexer.
+/*!
+ * @name Lexer
  */
+//!@{
 extern void lex_init(file_t *file);
 extern bool lex_pull(token_t *token);
 extern const char *lex_to_str(token_t *token);
+//!@}
 
-#endif
+#endif  // __CLINT_H__

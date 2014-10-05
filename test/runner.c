@@ -1,7 +1,13 @@
+/*!
+ * @brief Runner of tests.
+ */
+
 #include "clint.h"
 #include "helper.h"
 
-int main(void) {
+
+int main(void)
+{
   warn_pause();
 
   RUN(lexer);

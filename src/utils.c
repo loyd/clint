@@ -1,4 +1,6 @@
-#include "clint.h"
+/*!
+ * @brief Some auxiliary functions.
+ */
 
 #include <assert.h>
 #include <stdarg.h>
@@ -6,28 +8,40 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "clint.h"
 
-void *xmalloc(size_t size) {
+
+void *xmalloc(size_t size)
+{
   assert(size > 0);
+
   void *ptr = malloc(size);
-  if (!ptr) abort();
+  if (!ptr)
+    abort();
+
   return ptr;
 }
 
 
-void *xrealloc(void *ptr, size_t size) {
+void *xrealloc(void *ptr, size_t size)
+{
   assert(size > 0);
+
   ptr = realloc(ptr, size);
-  if (!ptr) abort();
+  if (!ptr)
+    abort();
+
   return ptr;
 }
 
 
-static inline int count_signs(int num) {
+static inline int count_signs(int num)
+{
   assert(num >= 0);
   int res = 0;
 
-  while (num) {
+  while (num)
+  {
     ++res;
     num /= 10;
   }
@@ -36,11 +50,13 @@ static inline int count_signs(int num) {
 }
 
 
-static inline int get_line_len(file_t *file, int line) {
+static inline int get_line_len(file_t *file, int line)
+{
   assert(file);
   assert(0 < line && line <= file->nlines);
 
-  if (line == file->nlines) {
+  if (line == file->nlines)
+  {
     char *nl = strchr(file->lines[line], '\n');
     return nl ? nl - file->lines[line] : strlen(file->lines[line]);
   }
@@ -58,21 +74,25 @@ void warn_resume(void) { flowing = true; }
 void warn_pause(void) { flowing = false; }
 
 
-void *warn_at(file_t *file, int line, int column, const char *format, ...) {
+void *warn_at(file_t *file, int line, int column, const char *format, ...)
+{
   assert(file && format);
   assert(0 < line && line <= file->nlines);
 
   int line_len = get_line_len(file, line);
   assert(0 < column && column <= line_len + 1);
 
-  if (!flowing) return NULL;
+  if (!flowing)
+    return NULL;
 
   va_list arg;
   int line_from = line-2;
   int line_to = line+2;
 
-  if (line_from < 1) line_from = 1;
-  if (line_to > file->nlines) line_to = file->nlines;
+  if (line_from < 1)
+    line_from = 1;
+  if (line_to > file->nlines)
+    line_to = file->nlines;
 
   int line_width = count_signs(line_to);
 
@@ -91,7 +111,8 @@ void *warn_at(file_t *file, int line, int column, const char *format, ...) {
 
   fprintf(stderr, NORMAL_STYLE ":\n");
 
-  for (int i = line_from; i <= line_to; ++i) {
+  for (int i = line_from; i <= line_to; ++i)
+  {
     fprintf(stderr, "  %*d | %.*s\n", line_width, i, get_line_len(file, i),
                                       file->lines[i]);
     if (i == line)
