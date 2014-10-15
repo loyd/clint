@@ -22,10 +22,10 @@ static bool _check(const char *input, enum token_e expected[], int len)
     static token_t tok;
 
     file.data = (char *)input;
-    lex_init(&file);
+    init_lexer(&file);
 
     int i = 0;
-    while (lex_pull(&tok) && i < len+1)
+    while (pull_token(&tok) && i < len+1)
         actual[i++] = tok.kind;
 
     if (i < len)

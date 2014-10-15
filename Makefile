@@ -11,7 +11,7 @@ CFLAGS := -pedantic -Werror -Wall -Wextra -Wswitch-default -Wswitch-enum      \
 GPERF := gperf
 RM := rm
 
-COMMON := src/utils.o src/lex.o
+COMMON := src/utils.o src/lexer.o
 
 
 clint: $(COMMON) src/cli.c
@@ -24,7 +24,7 @@ run-test: $(COMMON) test/*.[ch]
 src/%.o: src/%.c src/*.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-src/lex.o: src/kw.c.part src/pp.c.part
+src/lexer.o: src/kw.c.part src/pp.c.part
 
 src/%.c.part: src/%.gperf
 	$(GPERF) -tlTCE -j1 -K word -H $*_hash -N $*_check $< > $@

@@ -33,7 +33,7 @@ static bool parsing_pp_directive;
     warn_at(fp, fp->nlines, ch-fp->lines[fp->nlines]+1, __VA_ARGS__)
 
 
-void lex_init(file_t *file)
+void init_lexer(file_t *file)
 {
     assert(file);
     assert(file->data);
@@ -452,7 +452,7 @@ static bool header_name(token_t *token)
 }
 
 
-bool lex_pull(token_t *token)
+bool pull_token(token_t *token)
 {
     assert(token);
 
@@ -573,7 +573,7 @@ bool lex_pull(token_t *token)
 }
 
 
-const char *lex_to_str(token_t *token)
+const char *stringify_token(token_t *token)
 {
     assert(token);
     return stringify_kind(token->kind);

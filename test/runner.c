@@ -8,7 +8,7 @@
 
 int main(void)
 {
-  warn_pause();
+  pause_warnings();
 
   RUN(lexer);
 

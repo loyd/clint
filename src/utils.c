@@ -70,8 +70,8 @@ static inline int get_line_len(file_t *file, int line)
 #define NORMAL_STYLE    "\x1b[0m"
 
 static bool flowing = true;
-void warn_resume(void) { flowing = true; }
-void warn_pause(void) { flowing = false; }
+void resume_warnings(void) { flowing = true; }
+void pause_warnings(void) { flowing = false; }
 
 
 void *warn_at(file_t *file, int line, int column, const char *format, ...)

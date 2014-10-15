@@ -52,8 +52,8 @@ extern void *xrealloc(void *ptr, size_t size);
  * @name Logging
  */
 //!@{
-extern void warn_resume(void);
-extern void warn_pause(void);
+extern void resume_warnings(void);
+extern void pause_warnings(void);
 
 extern void *warn_at(file_t *file, int line, int column, const char *fmt, ...)
   __attribute__((format(printf, 4, 5)));
@@ -64,9 +64,10 @@ extern void *warn_at(file_t *file, int line, int column, const char *fmt, ...)
  * @name Lexer
  */
 //!@{
-extern void lex_init(file_t *file);
-extern bool lex_pull(token_t *token);
-extern const char *lex_to_str(token_t *token);
+extern void init_lexer(file_t *file);
+extern bool pull_token(token_t *token);
+extern const char *stringify_token(token_t *token);
 //!@}
+
 
 #endif  // __CLINT_H__
