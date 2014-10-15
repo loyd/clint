@@ -28,9 +28,15 @@ static bool _check(const char *input, enum token_e expected[], int len)
     while (lex_pull(&tok) && i < len+1)
         actual[i++] = tok.kind;
 
-    if (i != len)
+    if (i < len)
     {
-        fprintf(stderr, "Length of actual is %d, expected %d.\n", i, len);
+        fprintf(stderr, "Received %d tokens, but expected %d.\n", i, len);
+        return false;
+    }
+
+    if (i > len)
+    {
+        fprintf(stderr, "Received more tokens than expected (%d).\n", len);
         return false;
     }
 
@@ -224,6 +230,10 @@ GROUP(lexer)
                      ((T){PN_HASH, PP_INCLUDE, TOK_HEADER_NAME})));
         assert(check("#include \"test.h\"",
                      ((T){PN_HASH, PP_INCLUDE, TOK_HEADER_NAME})));
+        assert(check("#include <test.h",
+                     ((T){PN_HASH, PP_INCLUDE, TOK_UNKNOWN})));
+        assert(check("#include \"test.h",
+                     ((T){PN_HASH, PP_INCLUDE, TOK_UNKNOWN})));
     }
 
     TEST(comments)
