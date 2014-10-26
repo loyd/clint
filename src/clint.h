@@ -11,6 +11,7 @@
 #include <stdint.h>
 
 #include "tokens.h"
+#include "tree.h"
 
 
 enum token_e {
@@ -35,6 +36,7 @@ typedef struct {
     char *data;
     char **lines;  //!< 1-indexed
     int nlines;
+    tree_t *tree;
 } file_t;
 
 
@@ -69,5 +71,11 @@ extern bool pull_token(token_t *token);
 extern const char *stringify_token(token_t *token);
 //!@}
 
+/*!
+ * @name Parser
+ */
+//!@{
+extern void parse(file_t *file);
+//!@}
 
 #endif  // __CLINT_H__
