@@ -6,11 +6,15 @@
 #include <stdbool.h>
 
 #include "clint.h"
+#include "tokens.h"
 
 
-//#TODO: AST vs parse tree.
+#define TOKENS_INIT_SIZE 50
+#define TOKENS_SIZE_FACTOR 3
+
+
+//#TODO: preprocessor.
 //#TODO: panic-mode error handling system.
-//#TODO: expression vs declaration (problem of custom types).
 //#TODO: correct EOB handling.
 
 
@@ -20,8 +24,9 @@
  */
 //!@{
 static file_t *fp;
-static token_t *tokens_buf[2]; //!< Two tokens of look-ahead. It's enough for C.
-static int tokens_avail;
+static int tokens_size;
+static int tokens_len;
+static int consumed;
 //!@}
 
 
@@ -33,55 +38,567 @@ static void init_parser(file_t *file)
 {
     assert(file);
 
-    init_lexer(file);
-    tokens_avail = 0;
+    fp = file;
+    init_lexer(fp);
+    tokens_size = TOKENS_INIT_SIZE;
+    fp->tokens = xmalloc(tokens_size * sizeof(token_t));
+    tokens_len = consumed = 0;
 }
 
 
-static inline token_t *peek(void)
+static enum token_e peek(int lookahead)
 {
-    if (tokens_avail == 0)
+    assert(lookahead > 0);
+
+    int required = consumed + lookahead;
+
+    if (required > tokens_len)
     {
-        //#TODO: add EOF processing.
-        pull_token(&tokens_buf[0]);
-        tokens_avail = 1;
+        if (required > tokens_size)
+        {
+            tokens_size *= TOKENS_SIZE_FACTOR;
+            fp->tokens = xrealloc(fp->tokens, tokens_size * sizeof(token_t));
+        }
+
+        for (; tokens_len < required; ++tokens_len)
+        {
+            pull_token(&fp->tokens[tokens_len]);
+            if (fp->tokens[tokens_len].kind == TOK_EOF)
+                return TOK_EOF;
+        }
     }
 
-    return tokens_buf;
+    return fp->tokens[required-1].kind;
 }
 
 
-static inline token_t *peek_2nd(void)
+static inline bool next_is(enum token_e kind)
 {
-    if (tokens_avail < 2)
-    {
-        //#TODO: add EOF processing.
-        pull_token(&tokens_buf[1])
-        tokens_avail = 2;
-    }
-
-    return &tokens_buf[1];
+    return peek(1) == kind;
 }
 
 
 static token_t *consume(void)
 {
-    assert(tokens_avail);
-    free(tokens_buf[0]);
-
-    if (tokens_avail == 2)
-        tokens_buf[0] = tokens_buf[1];
-
-    --tokens_avail;
-    return tokens_buf;
+    peek(1);
+    assert(!next_is(TOK_EOF));
+    return &fp->tokens[consumed++];
 }
 
 
-static token_t *expect(void)
+static token_t *accept(enum token_e kind)
+{
+    if (next_is(kind))
+        return consume();
+
+    return NULL;
+}
+
+
+static token_t *expect(enum token_e kind)
 {
     //#TODO: error handling.
-    return consume();
+    if (next_is(kind))
+        return consume();
+
+    return NULL;
 }
+
+
+///////////
+// List. //
+///////////
+
+static list_t new_list(void)
+{
+    list_t list = xmalloc(sizeof(*list));
+    list->first = list->last = NULL;
+    return list;
+}
+
+
+static void add_to_list(list_t list, void *data)
+{
+    assert(list && data);
+
+    struct list_entry_s *entry = xmalloc(sizeof(*entry));
+    entry->next = NULL;
+    entry->data = data;
+
+    if (list->last)
+        list->last->next = entry;
+    else
+        list->first = list->last = entry;
+}
+
+
+////////////
+// Nodes. //
+////////////
+
+#define T(type) type
+#define finish(res) (tree_t)res
+
+
+static tree_t finish_transl_unit(list_t entities)
+{
+    assert(entities);
+    struct transl_unit_s *res = xmalloc(sizeof(*res));
+    *res = (struct transl_unit_s){T(TRANSL_UNIT), entities};
+    return finish(res);
+}
+
+
+static tree_t finish_declaration(tree_t specs, list_t decls)
+{
+    assert(specs);
+    struct declaration_s *res = xmalloc(sizeof(*res));
+    *res = (struct declaration_s){T(DECLARATION), specs, decls};
+    return finish(res);
+}
+
+
+static tree_t finish_specifiers(token_t *storage, token_t *fnspec,
+                                list_t quals, tree_t dirtype)
+{
+    struct specifiers_s *res = xmalloc(sizeof(*res));
+    *res = (struct specifiers_s){
+        T(SPECIFIERS), storage, fnspec, quals, dirtype
+    };
+
+    return finish(res);
+}
+
+
+static tree_t finish_declarator(tree_t indtype, token_t *name,
+                                tree_t init, tree_t bitsize)
+{
+    assert(indtype);
+    struct declarator_s *res = xmalloc(sizeof(*res));
+    *res = (struct declarator_s){T(DECLARATOR), indtype, name, init, bitsize};
+    return finish(res);
+}
+
+
+static tree_t finish_function_def(tree_t specs, tree_t decl,
+                                  list_t old_decls, tree_t body)
+{
+    assert(specs && decl && body);
+    struct function_def_s *res = xmalloc(sizeof(*res));
+    *res = (struct function_def_s){
+        T(FUNCTION_DEF), specs, decl, old_decls, body
+    };
+
+    return finish(res);
+}
+
+
+static tree_t finish_parameter(tree_t specs, tree_t decl)
+{
+    assert(specs);
+    struct parameter_s *res = xmalloc(sizeof(*res));
+    *res = (struct parameter_s){T(PARAMETER), specs, decl};
+    return finish(res);
+}
+
+
+static tree_t finish_type_name(tree_t specs, tree_t decl)
+{
+    assert(specs);
+    struct type_name_s *res = xmalloc(sizeof(*res));
+    *res = (struct type_name_s){T(TYPE_NAME), specs, decl};
+    return finish(res);
+}
+
+
+static tree_t finish_id_type(list_t names)
+{
+    assert(names);
+    struct id_type_s *res = xmalloc(sizeof(*res));
+    *res = (struct id_type_s){T(ID_TYPE), names};
+    return finish(res);
+}
+
+
+static tree_t finish_struct(token_t *name, list_t members)
+{
+    assert(members);
+    struct struct_s *res = xmalloc(sizeof(*res));
+    *res = (struct struct_s){T(STRUCT), name, members};
+    return finish(res);
+}
+
+
+static tree_t finish_union(token_t *name, list_t members)
+{
+    assert(members);
+    struct union_s *res = xmalloc(sizeof(*res));
+    *res = (struct union_s){T(UNION), name, members};
+    return finish(res);
+}
+
+
+static tree_t finish_enum(token_t *name, list_t values)
+{
+    assert(values);
+    struct enum_s *res = xmalloc(sizeof(*res));
+    *res = (struct enum_s){T(ENUM), name, values};
+    return finish(res);
+}
+
+
+static tree_t finish_enumerator(token_t *name, tree_t value)
+{
+    assert(name && value);
+    struct enumerator_s *res = xmalloc(sizeof(*res));
+    *res = (struct enumerator_s){T(ENUMERATOR), name, value};
+    return finish(res);
+}
+
+
+static tree_t finish_pointer(tree_t specs, tree_t indtype)
+{
+    assert(specs);
+    struct pointer_s *res = xmalloc(sizeof(*res));
+    *res = (struct pointer_s){T(POINTER), specs, indtype};
+    return finish(res);
+}
+
+
+static tree_t finish_array(tree_t indtype, tree_t dim_specs, tree_t dim)
+{
+    struct array_s *res = xmalloc(sizeof(*res));
+    *res = (struct array_s){T(ARRAY), indtype, dim_specs, dim};
+    return finish(res);
+}
+
+
+static tree_t finish_function(tree_t indtype, list_t params)
+{
+    assert(params);
+    struct function_s *res = xmalloc(sizeof(*res));
+    *res = (struct function_s){T(FUNCTION), indtype, params};
+    return finish(res);
+}
+
+
+static tree_t finish_block(list_t entities)
+{
+    assert(entities);
+    struct block_s *res = xmalloc(sizeof(*res));
+    *res = (struct block_s){T(BLOCK), entities};
+    return finish(res);
+}
+
+
+static tree_t finish_if(tree_t cond, tree_t then_br, tree_t else_br)
+{
+    assert(cond && then_br);
+    struct if_s *res = xmalloc(sizeof(*res));
+    *res = (struct if_s){T(IF), cond, then_br, else_br};
+    return finish(res);
+}
+
+
+static tree_t finish_switch(tree_t cond, tree_t body)
+{
+    assert(cond && body);
+    struct switch_s *res = xmalloc(sizeof(*res));
+    *res = (struct switch_s){T(SWITCH), cond, body};
+    return finish(res);
+}
+
+
+static tree_t finish_while(tree_t cond, tree_t body)
+{
+    assert(cond && body);
+    struct while_s *res = xmalloc(sizeof(*res));
+    *res = (struct while_s){T(WHILE), cond, body};
+    return finish(res);
+}
+
+
+static tree_t finish_do_while(tree_t body, tree_t cond)
+{
+    assert(body && cond);
+    struct do_while_s *res = xmalloc(sizeof(*res));
+    *res = (struct do_while_s){T(DO_WHILE), cond, body};
+    return finish(res);
+}
+
+
+static tree_t finish_for(tree_t init, tree_t cond, tree_t next, tree_t body)
+{
+    assert(body);
+    struct for_s *res = xmalloc(sizeof(*res));
+    *res = (struct for_s){T(FOR), init, cond, next, body};
+    return finish(res);
+}
+
+
+static tree_t finish_goto(token_t *label)
+{
+    assert(label);
+    struct goto_s *res = xmalloc(sizeof(*res));
+    *res = (struct goto_s){T(GOTO), label};
+    return finish(res);
+}
+
+
+static tree_t finish_break(void)
+{
+    struct break_s *res = xmalloc(sizeof(*res));
+    *res = (struct break_s){T(BREAK)};
+    return finish(res);
+}
+
+
+static tree_t finish_continue(void)
+{
+    struct continue_s *res = xmalloc(sizeof(*res));
+    *res = (struct continue_s){T(CONTINUE)};
+    return finish(res);
+}
+
+
+static tree_t finish_return(tree_t result)
+{
+    assert(result);
+    struct return_s *res = xmalloc(sizeof(*res));
+    *res = (struct return_s){T(RETURN), result};
+    return finish(res);
+}
+
+
+static tree_t finish_label(token_t *name, tree_t stmt)
+{
+    assert(name && stmt);
+    struct label_s *res = xmalloc(sizeof(*res));
+    *res = (struct label_s){T(LABEL), name, stmt};
+    return finish(res);
+}
+
+
+static tree_t finish_default(tree_t stmt)
+{
+    assert(stmt);
+    struct default_s *res = xmalloc(sizeof(*res));
+    *res = (struct default_s){T(DEFAULT), stmt};
+    return finish(res);
+}
+
+
+static tree_t finish_case(tree_t expr, tree_t stmt)
+{
+    assert(stmt);
+    struct case_s *res = xmalloc(sizeof(*res));
+    *res = (struct case_s){T(CASE), expr, stmt};
+    return finish(res);
+}
+
+
+static tree_t finish_identifier(token_t *value)
+{
+    struct identifier_s *res = xmalloc(sizeof(*res));
+    *res = (struct identifier_s){T(IDENTIFIER), value};
+    return finish(res);
+}
+
+
+static tree_t finish_constant(token_t *value)
+{
+    struct constant_s *res = xmalloc(sizeof(*res));
+    *res = (struct constant_s){T(CONSTANT), value};
+    return finish(res);
+}
+
+
+static tree_t finish_special(token_t *value)
+{
+    struct special_s *res = xmalloc(sizeof(*res));
+    *res = (struct special_s){T(SPECIAL), value};
+    return finish(res);
+}
+
+
+static tree_t finish_empty(void)
+{
+    struct empty_s *res = xmalloc(sizeof(*res));
+    *res = (struct empty_s){T(EMPTY)};
+    return finish(res);
+}
+
+
+static tree_t finish_accessor(tree_t left, token_t *op, token_t *field)
+{
+    assert(left && op && field);
+    struct accessor_s *res = xmalloc(sizeof(*res));
+    *res = (struct accessor_s){T(ACCESSOR), left, op, field};
+    return finish(res);
+}
+
+
+static tree_t finish_comma(list_t exprs)
+{
+    assert(exprs);
+    struct comma_s *res = xmalloc(sizeof(*res));
+    *res = (struct comma_s){T(COMMA), exprs};
+    return finish(res);
+}
+
+
+static tree_t finish_call(tree_t left, list_t args)
+{
+    assert(left && args);
+    struct call_s *res = xmalloc(sizeof(*res));
+    *res = (struct call_s){T(CALL), left, args};
+    return finish(res);
+}
+
+static tree_t finish_cast(tree_t type_name, tree_t expr)
+{
+    assert(type_name && expr);
+    struct cast_s *res = xmalloc(sizeof(*res));
+    *res = (struct cast_s){T(CAST), type_name, expr};
+    return finish(res);
+}
+
+
+
+static tree_t finish_conditional(tree_t cond, tree_t then_br, tree_t else_br)
+{
+    assert(cond && then_br && else_br);
+    struct conditional_s *res = xmalloc(sizeof(*res));
+    *res = (struct conditional_s){T(CONDITIONAL), cond, then_br, else_br};
+    return finish(res);
+}
+
+
+static tree_t finish_subscript(tree_t left, tree_t index)
+{
+    assert(left && index);
+    struct subscript_s *res = xmalloc(sizeof(*res));
+    *res = (struct subscript_s){T(SUBSCRIPT), left, index};
+    return finish(res);
+}
+
+
+static tree_t finish_unary(token_t *op, tree_t expr)
+{
+    assert(op && expr);
+    struct unary_s *res = xmalloc(sizeof(*res));
+    *res = (struct unary_s){T(UNARY), op, expr};
+    return finish(res);
+}
+
+
+static tree_t finish_binary(tree_t left, token_t *op, tree_t right)
+{
+    assert(left && op && right);
+    struct binary_s *res = xmalloc(sizeof(*res));
+    *res = (struct binary_s){T(BINARY), left, op, right};
+    return finish(res);
+}
+
+
+static tree_t finish_assignment(tree_t left, token_t *op, tree_t right)
+{
+    assert(left && op && right);
+    struct assignment_s *res = xmalloc(sizeof(*res));
+    *res = (struct assignment_s){T(ASSIGNMENT), left, op, right};
+    return finish(res);
+}
+
+
+static tree_t finish_comp_literal(tree_t type_name, list_t members)
+{
+    assert(members);
+    struct comp_literal_s *res = xmalloc(sizeof(*res));
+    *res = (struct comp_literal_s){T(COMP_LITERAL), type_name, members};
+    return finish(res);
+}
+
+
+static tree_t finish_comp_member(list_t designs, tree_t init)
+{
+    assert(init);
+    struct comp_member_s *res = xmalloc(sizeof(*res));
+    *res = (struct comp_member_s){T(COMP_MEMBER), designs, init};
+    return finish(res);
+}
+
+
+/*!
+ * In problem "X * Y" we prefer declaration to statement.
+ * In problem "X(Y)" we prefer statement to declaration.
+ * In problem "X Y" we prefer declaration to statement (w/ macros).
+ */
+static bool starts_declaration(void)
+{
+    switch (peek(1))
+    {
+        // Custom type or start of expression.
+        case TOK_IDENTIFIER:
+            switch (peek(2))
+            {
+                case PN_STAR: case TOK_IDENTIFIER: case KW_TYPEDEF:
+                case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:
+                case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
+                    return true;
+            }
+
+            break;
+
+        // Storage class specifiers.
+        case KW_TYPEDEF: case KW_EXTERN: case KW_STATIC: case KW_REGISTER:
+        case KW_AUTO:
+        // Primitive type specifiers.
+        case KW_VOID: case KW_CHAR: case KW_SHORT: case KW_INT:
+        case KW_LONG: case KW_FLOAT: case KW_DOUBLE: case KW_SIGNED:
+        case KW_UNSIGNED: case KW_BOOL: case KW_COMPLEX:
+        // Type qualifiers.
+        case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
+        // Structures.
+        case KW_STRUCT: case KW_UNION: case KW_ENUM:
+        // Function specifier.
+        case KW_INLINE:
+            return true;
+    }
+
+    return false;
+}
+
+
+static tree_t cast_expression(void);
+static tree_t postfix_expression_suffixes(tree_t left);
+static tree_t binary_expression(void);
+static tree_t conditional_expression(void);
+static tree_t assignment_expression(void);
+static tree_t expression(void);
+static tree_t constant_expression(void);
+
+static tree_t declaration(void);
+static tree_t declaration_inner(tree_t specs, tree_t first_declarator);
+static tree_t declaration_specifiers(void);
+static tree_t struct_or_union_specifier(void);
+static tree_t enum_specifier(void);
+static tree_t init_declarator(void);
+static tree_t declarator_inner(token_t **name);
+static tree_t direct_declarator_inner(token_t **name);
+static tree_t compound_literal(tree_t type);
+static tree_t initializer(void);
+static tree_t type_name(void);
+static tree_t declaration_or_fn_definition(void);
+
+static tree_t statement(void);
+static tree_t labeled_statement(void);
+static tree_t compound_statement(void);
+static tree_t expression_statement(void);
+static tree_t selection_statement(void);
+static tree_t iteration_statement(void);
+static tree_t jump_statement(void);
+
+static tree_t translation_unit(void);
 
 
 //////////////////
@@ -97,100 +614,9 @@ static token_t *expect(void)
  *
  * C99 6.5.2 postfix-expression:
  *     primary-expression
- *     postfix-expression "[" expression "]"
- *     postfix-expression "(" [argument-expression-list] ")"
- *     postfix-expression "." identifier
- *     postfix-expression "->" identifier
- *     postfix-expression "++"
- *     postfix-expression "--"
+ *     postfix-expression postfix-expression-suffix
  *     "(" type-name ")" "{" initializer-list [","] "}"
  *
- * C99 6.5.2 argument-expression-list:
- *     assignment-expression
- *     argument-expression-list "," assignment-expression
- */
-static tree_t postfix_expression(void)
-{
-    tree_t left;
-
-    // Can start with primary expression or compound literal.
-    switch (peek()->kind)
-    {
-        case TOK_IDENTIFIER:
-            left = new_identifier(consume());
-
-        case TOK_NUM_CONST:
-        case TOK_CHAR_CONST:
-        case TOK_STRING:
-            left = new_literal(consume());
-
-        case PN_LPAREN:
-            consume();
-
-            if ((left = try_type_name()))
-            {
-                expect(PN_RPAREN);
-                expect(PN_LBRACE);
-
-                left = new_compound_literal(left, initializer_list());
-
-                if (peek()->kind == PN_COMMA)
-                    consume();
-
-                expect(PN_RBRACE);
-            }
-            else
-            {
-                left = expression();
-                expect(PN_RPAREN);
-            }
-
-            consume();
-
-        default:
-            assert(0);
-    }
-
-    // Snow-ball.
-    for (bool done = false; !done; consume())
-        switch (peek()->kind)
-        {
-            case PN_LSQUARE:
-                consume();
-                left = new_subscript(left, expression());
-                expect(PN_RSQUARE);
-                break;
-
-            case PN_LPAREN:
-                consume();
-                list_t params = new_list();
-
-                do
-                    add_to_list(params, assignment_expression());
-                while (peek()->kind == PN_COMMA);
-
-                left = new_call(left, params);
-                break;
-
-            case PN_PERIOD:
-            case PN_ARROW:
-                token_t *op = consume();
-                left = new_accessor(left, op, expect(TOK_IDENTIFIER));
-                break;
-
-            case PN_PLUSPLUS:
-            case PN_MINUSMINUS:
-                left = new_unary(left, consume());
-
-            default:
-                done = true;
-        }
-
-    return left;
-}
-
-
-/*!
  * C99 6.5.3 unary-expression:
  *     postfix-expression
  *     "++" unary-expression
@@ -201,53 +627,159 @@ static tree_t postfix_expression(void)
  *
  * C99 6.5.3 unary-operator:
  *     "&" | "*" | "+" | "-" | "~" | "!"
- */
-static tree_t unary_expression(void)
-{
-    switch (peek()->kind)
-    {
-        case PN_PLUSPLUS:
-        case PN_MINUSMINUS:
-            token_t *op = consume();
-            return new_unary(op, unary_expression());
-
-        case PN_AMP:
-        case PN_STAR:
-        case PN_PLUS:
-        case PN_MINUS:
-        case PN_TILDE:
-        case PN_EXCLAIM:
-            token_t *op = consume();
-            return new_unary(op, cast_expression());
-
-        case KW_SIZEOF:
-            consume();
-            if (peek()->kind == LPAREN)
-                return new_sizeof(type_name());
-            else
-                return new_sizeof(unary_expression());
-
-        default:
-            return postfix_expression();
-    }
-}
-
-
-/*!
+ *
  * C99 6.5.4 cast-expression:
  *     unary-expression
  *     "(" type-name ")" cast-expression
  */
 static tree_t cast_expression(void)
 {
-    if (peek()->kind != PN_LPAREN)
-        return unary_expression();
+    //#TODO: support for sizeof.
 
-    consume();
-    tree_t type = type_name();
-    expect(PN_RPAREN);
+    tree_t left;
 
-    return new_cast(type, cast_expression());
+    switch (peek(1))
+    {
+        // Compound literal: (<type-name>) {<init-list>}
+        // Cast expression:  (<type-name>) <cast-expr>
+        // Postfix expression: (<expr>) <postfix-expr-suffix>
+        // Primary expression: (<expr>)
+        case PN_LPAREN:
+            consume();
+
+            // Choice between type name and expression.
+            if (starts_declaration())
+                left = type_name();
+            else if (next_is(TOK_IDENTIFIER) && peek(2) == PN_RPAREN)
+            {
+                // Some heuristics.
+                switch (peek(3))
+                {
+                    case PN_LSQUARE:
+                    case PN_PERIOD:
+                    case PN_ARROW:
+                        left = expression();
+                        break;
+
+                    case PN_PLUSPLUS:
+                    case PN_MINUSMINUS:
+                        if (peek(4) != TOK_IDENTIFIER)
+                        {
+                            left = expression();
+                            break;
+                        }
+
+                        // Fallthrough.
+
+                    default:
+                        left = type_name();
+                }
+            }
+            else
+                left = expression();
+
+            expect(PN_RPAREN);
+
+            if (left->type == TYPE_NAME)
+                if (next_is(PN_LBRACE))
+                    left = compound_literal(left);
+                else
+                    return finish_cast(left, cast_expression());
+
+            break;
+
+        // Primary expression.
+        case TOK_IDENTIFIER:
+            left = finish_identifier(consume());
+            break;
+
+        case TOK_NUM_CONST:
+        case TOK_CHAR_CONST:
+        case TOK_STRING:
+            left = finish_constant(consume());
+            break;
+
+        // Prefix unary operators.
+        case PN_PLUSPLUS:
+        case PN_MINUSMINUS:
+        case PN_AMP:
+        case PN_STAR:
+        case PN_PLUS:
+        case PN_MINUS:
+        case PN_TILDE:
+        case PN_EXCLAIM:
+        {
+            token_t *op = consume();
+            return finish_unary(op, cast_expression());
+        }
+
+        case KW_SIZEOF:
+            consume();
+
+            assert(0 && "Not implemented");
+    }
+
+    return postfix_expression_suffixes(left);
+}
+
+
+/*!
+ * postfix-expression-suffixes:
+ *     [postfix-expression-suffix]*
+ *
+ * postfix-expression-suffix:
+ *     "[" expression "]"
+ *     "(" [argument-expression-list] ")"
+ *     "." identifier
+ *     "->" identifier
+ *     "++"
+ *     "--"
+ *
+ * C99 6.5.2 argument-expression-list:
+ *     [argument-expression-list ","] assignment-expression
+ */
+static tree_t postfix_expression_suffixes(tree_t left)
+{
+    for(;;) switch (peek(1))
+    {
+        case PN_LSQUARE:
+            consume();
+            left = finish_subscript(left, expression());
+            expect(PN_RSQUARE);
+            break;
+
+        case PN_LPAREN:
+        {
+            list_t params = new_list();
+            consume();
+
+            while (!accept(PN_RPAREN))
+            {
+                add_to_list(params, assignment_expression());
+                if (!next_is(PN_RPAREN))
+                    expect(PN_COMMA);
+            }
+
+            left = finish_call(left, params);
+            break;
+        }
+
+        case PN_PERIOD:
+        case PN_ARROW:
+        {
+            token_t *op = consume();
+            left = finish_accessor(left, op, expect(TOK_IDENTIFIER));
+            break;
+        }
+
+        case PN_PLUSPLUS:
+        case PN_MINUSMINUS:
+            left = finish_unary(consume(), left);
+            break;
+
+        default:
+            return left;
+    }
 }
 
 
@@ -255,9 +787,8 @@ static tree_t cast_expression(void)
  * From C99 6.5.5 multiplicative-expression
  * to   C99 6.5.14 logical-OR-expression
  *
- * binary_expression:
- *     cast-expression
- *     binary-expression binary-operator cast-expression
+ * binary-expression:
+ *     [binary-expression binary-operator] cast-expression
  *
  * binary-operator:
  *     "*"  | "/"  | "%"  | "+"  | "-" | "<<" | ">>" | ">"  | "<" |
@@ -268,7 +799,7 @@ static tree_t binary_expression(void)
     tree_t left = cast_expression();
     token_t *op;
 
-    for (;;) switch (peek()->kind)
+    for (;;) switch (peek(1))
     {
         // Multiplicative.
         case PN_STAR: case PN_SLASH: case PN_PERCENT:
@@ -285,7 +816,8 @@ static tree_t binary_expression(void)
         // Logical.
         case PN_AMPAMP: case PN_PIPEPIPE:
             op = consume();
-            left = new_binary(left, op, cast_expression());
+            left = finish_binary(left, op, cast_expression());
+            break;
 
         default:
             return left;
@@ -295,23 +827,21 @@ static tree_t binary_expression(void)
 
 /*!
  * C99 6.5.15 conditional-expression:
- *     logical-OR-expression
- *     logical-OR-expression ? expression : conditional-expression
+ *     logical-OR-expression ["?" expression ":" conditional-expression]
  */
 static tree_t conditional_expression(void)
 {
     tree_t cond = binary_expression();
     tree_t then_br, else_br;
 
-    if (peek()->kind != PN_QUESTION)
+    if (!accept(PN_QUESTION))
         return cond;
 
-    consume();
     then_br = expression();
     expect(PN_COLON);
     else_br = conditional_expression();
 
-    return new_conditional(cond, then_br, else_br);
+    return finish_conditional(cond, then_br, else_br);
 }
 
 
@@ -331,7 +861,7 @@ static tree_t assignment_expression(void)
     tree_t lhs = conditional_expression();
     token_t *op;
 
-    switch (peek()->kind)
+    switch (peek(1))
     {
         case PN_EQ:
         // Multiplicative.
@@ -343,35 +873,79 @@ static tree_t assignment_expression(void)
         // Bitwise.
         case PN_AMPEQ: case PN_PIPEEQ: case PN_CARETEQ:
             op = consume();
+            break;
 
         default:
             return lhs;
     }
 
-    return new_assignment(lhs, op, assignment_expression());
+    return finish_assignment(lhs, op, assignment_expression());
 }
 
 
 /*!
  * C99 6.5.17 expression:
- *     assignment-expression
- *     expression "," assignment-expression
+ *     [expression ","] assignment-expression
  */
 static tree_t expression(void)
 {
     tree_t expr = assignment_expression();
+    list_t exprs;
 
-    if (peek()->kind != PN_COMMA)
+    if (!next_is(PN_COMMA))
         return expr;
 
-    consume();
-    return new_comma(expr, assignment_expression());
+    exprs = new_list();
+    add_to_list(exprs, expr);
+
+    while (accept(PN_COMMA))
+        add_to_list(exprs, assignment_expression());
+
+    return finish_comma(exprs);
+}
+
+
+/*!
+ * C99 6.6 constant-expression:
+ *     conditional-expression
+ */
+static inline tree_t constant_expression(void)
+{
+    return conditional_expression();
 }
 
 
 ///////////////////
 // Declarations. //
 ///////////////////
+
+/*!
+ * C99 6.7 declaration:
+ *     declaration-specifiers [init-declarator-list] ";"
+ *
+ * C99 6.7 init-declarator-list:
+ *     init-declarator
+ *     init-declarator-list "," init-declarator
+ */
+static tree_t declaration(void)
+{
+    tree_t specs = declaration_specifiers();
+    return declaration_inner(specs, init_declarator());
+}
+
+
+static tree_t declaration_inner(tree_t specs, tree_t first_declarator)
+{
+    list_t decls = new_list();
+    add_to_list(decls, first_declarator);
+
+    while (accept(PN_COMMA))
+        add_to_list(decls, init_declarator());
+
+    expect(PN_SEMI);
+    return finish_declaration(specs, decls);
+}
+
 
 /*!
  * C99 6.7 declaration-specifiers:
@@ -390,47 +964,213 @@ static tree_t expression(void)
  *     enum-specifier
  *     typedef-name
  *
+ * C99 6.7.3 type-qualifier:
+ *     "const" | "restrict" | "volatile"
+ *
+ * C99 6.7.4 function-specifier:
+ *     "inline"
+ *
+ * We accept empty declaration specifiers.
+ */
+static tree_t declaration_specifiers(void)
+{
+    token_t *storage = NULL;
+    token_t *fnspec = NULL;
+    tree_t dirtype = NULL;
+    list_t names = NULL;
+    list_t quals = NULL;
+
+    for (;;) switch (peek(1))
+    {
+        // Storage class specifiers.
+        case KW_TYPEDEF: case KW_EXTERN: case KW_STATIC: case KW_REGISTER:
+        case KW_AUTO:
+            storage = consume();
+            break;
+
+        // Primitive type specifiers.
+        case KW_VOID: case KW_CHAR: case KW_SHORT: case KW_INT:
+        case KW_LONG: case KW_FLOAT: case KW_DOUBLE: case KW_SIGNED:
+        case KW_UNSIGNED: case KW_BOOL: case KW_COMPLEX:
+            if (!names)
+                names = new_list();
+
+            add_to_list(names, consume());
+            break;
+
+        // Type qualifiers.
+        case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
+            if (!quals)
+                quals = new_list();
+
+            add_to_list(quals, consume());
+            break;
+
+        // Struct or union.
+        case KW_STRUCT: case KW_UNION:
+            //#TODO: handle this case.
+            // if (dirtype)
+            //     despose_tree(dirtype);
+
+            dirtype = struct_or_union_specifier();
+            break;
+
+        // Enumeration.
+        case KW_ENUM:
+            // if (dirtype)
+            //     despose_tree(dirtype);
+
+            dirtype = enum_specifier();
+            break;
+
+        // Function specifier.
+        case KW_INLINE:
+            fnspec = consume();
+            break;
+
+        // Perhaps custom type.
+        case TOK_IDENTIFIER:
+            if (!(dirtype || names) && starts_declaration())
+            {
+                names = new_list();
+                add_to_list(names, consume());
+            }
+
+            // Fallthrough.
+
+        default:
+            if (names)
+            {
+                //#TODO: struct-like vs id names.
+                // if (dirtype)
+                //     dispose_tree(dirtype);
+
+                dirtype = finish_id_type(names);
+            }
+
+            return finish_specifiers(storage, fnspec, quals, dirtype);
+    }
+}
+
+
+/*!
  * C99 6.7.2.1 struct-or-union-specifier:
  *     struct-or-union [identifier] "{" struct-declaration-list "}"
  *     struct-or-union identifier
  *
  * C99 6.7.2.1 struct-or-union:
  *     "struct" | "union"
+ *
+ * C99 6.7.2.1 struct-declaration-list:
+ *     [struct-declaration]+
+ *
+ * C99 6.7.2.1 struct-declaration:
+ *     specifier-qualifier-list struct-declarator-list ";"
+ *
+ * C99 6.7.2.1 specifier-qualifier-list:
+ *     type-specifier [specifier-qualifier-list]
+ *     type-qualifier [specifier-qualifier-list]
+ *
+ * C99 6.7.2.1 struct-declarator-list:
+ *     [struct-declarator-list ","] struct-declarator
+ *
+ * C99 6.7.2.1 struct-declarator:
+ *     declarator
+ *     [declarator] ":" constant-expression
  */
-static tree_t declaration_specifiers(void)
+static tree_t struct_or_union_specifier(void)
 {
-    //#TODO: what about returning of special structure instead tree?
+    //#TODO: add support for bitsize field.
 
-    tree_t storage = NULL;
-    tree_t type = NULL;
+    tree_t (*ctor)(token_t *, list_t);
+    token_t *name = NULL;
+    list_t members;
 
-    for (;;)
+    if (accept(KW_STRUCT))
+        ctor = finish_struct;
+    else
     {
-        switch (peek()->kind)
-        {
-            // Storage class specifier.
-            case KW_TYPEDEF: case KW_EXTERN: case KW_STATIC: case KW_REGISTER:
-            case KW_AUTO:
-                if (storage)
-                    dispose_node(storage);
-
-                storage = consume();
-
-            // Type specifier.
-            case KW_VOID: case KW_CHAR: case KW_SHORT: case KW_INT:
-            case KW_LONG: case KW_FLOAT: case KW_DOUBLE: case KW_SIGNED:
-            case KW_UNSIGNED: case KW_BOOL: case KW_COMPLEX:
-
-            // Type qualifier.
-            case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
-                break;
-
-            // Struct or union.
-            case KW_STRUCT: case KW_UNION:
-                consume();
-                // ...
-        }
+        expect(KW_UNION);
+        ctor = finish_union;
     }
+
+    if (next_is(TOK_IDENTIFIER))
+    {
+        name = consume();
+        if (!next_is(PN_LBRACE))
+            return ctor(name, NULL);
+    }
+
+    expect(PN_LBRACE);
+    members = new_list();
+
+    while (!accept(PN_RBRACE))
+    {
+        add_to_list(members, declaration());
+        accept(PN_SEMI);
+    }
+
+    return ctor(name, members);
+}
+
+
+/*!
+ * C99 6.7.2.2 enum-specifier:
+ *     "enum" [identifier] "{" enumerator-list [","] "}"
+ *     "enum" identifier
+ *
+ * C99 6.7.2.2 enumerator-list:
+ *     enumerator
+ *     enumerator-list "," enumerator
+ *
+ * C99 6.7.2.2 enumerator:
+ *     enumeration-constant ["=" constant-expression]
+ */
+static tree_t enum_specifier(void)
+{
+    list_t enumerators;
+    token_t *enum_name = NULL;
+
+    expect(KW_ENUM);
+
+    if (next_is(TOK_IDENTIFIER))
+    {
+        enum_name = consume();
+        if (!next_is(PN_LBRACE))
+            return finish_enum(enum_name, NULL);
+    }
+
+    expect(PN_LBRACE);
+    enumerators = new_list();
+
+    while (!accept(PN_RBRACE))
+    {
+        token_t *enumerator_name = expect(TOK_IDENTIFIER);
+        tree_t enumerator = finish_enumerator(enumerator_name,
+            accept(PN_EQ) ? constant_expression() : NULL);
+
+        add_to_list(enumerators, enumerator);
+        accept(PN_COMMA);
+    }
+
+    return finish_enum(enum_name, enumerators);
+}
+
+
+/*!
+ * C99 6.7.1 init-declarator:
+ *     declarator ["=" initializer]
+ */
+static tree_t init_declarator(void)
+{
+    token_t *name;
+    tree_t init = NULL;
+    tree_t indtype = declarator_inner(&name);
+
+    if (accept(PN_EQ))
+        init = initializer();
+
+    return finish_declarator(indtype, name, init, NULL);
 }
 
 
@@ -438,6 +1178,47 @@ static tree_t declaration_specifiers(void)
  * C99 6.7.5 declarator:
  *     [pointer] direct-declarator
  *
+ * C99 6.7.5 abstract-declarator:
+ *     pointer
+ *     [pointer] direct-abstract-declarator
+ *
+ * C99 6.7.5 pointer:
+ *     ["*" [type-qualifier-list]]+
+ *
+ * C99 6.7.5 type-qualifier-list:
+ *     [type-qualifier]+
+ */
+static tree_t declarator_inner(token_t **name)
+{
+    //#TODO: how about a tightening of requirements?
+    tree_t specs;
+
+    if (!accept(PN_STAR))
+        return direct_declarator_inner(name);
+
+    specs = declaration_specifiers();
+
+    switch (peek(1))
+    {
+        // Nested pointer.
+        case PN_STAR:
+        // Signs of (abstract) direct declarator.
+        case TOK_IDENTIFIER:
+        case PN_LSQUARE:
+        case PN_LPAREN:
+            return finish_pointer(specs, declarator_inner(name));
+    }
+
+    // Unexpected abstract declarator.
+    if (name)
+        *name = NULL;
+
+    // Only pointer within abstract declarator.
+    return finish_pointer(specs, NULL);
+}
+
+
+/*!
  * C99 6.7.5 direct-declarator:
  *     identifier
  *     "(" declarator ")"
@@ -451,21 +1232,11 @@ static tree_t declaration_specifiers(void)
  *     "[" type-qualifier-list "static" assignment-expression "]"
  *     "[" [type-qualifier-list] "*" "]"
  *
- * C99 6.7.5 pointer:
- *     "*" [type-qualifier-list]
- *     "*" [type-qualifier-list] pointer
- *
- * C99 6.7.5 type-qualifier-list:
- *     type-qualifier
- *     type-qualifier-list type-qualifier
- *
  * C99 6.7.5 parameter-type-list:
- *     parameter-list
- *     parameter-list "," "..."
+ *     parameter-list ["," "..."]
  *
  * C99 6.7.5 parameter-list:
- *     parameter-declaration
- *     parameter-list "," parameter-declaration
+ *     [parameter-list ","] parameter-declaration
  *
  * C99 6.7.5 parameter-declaration:
  *     declaration-specifiers declarator
@@ -475,44 +1246,163 @@ static tree_t declaration_specifiers(void)
  *     identifier
  *     identifier-list "," identifier
  *
- * C99 6.7.5 abstract-declarator:
- *     pointer
- *     [pointer] direct-abstract-declarator
- *
  * C99 6.7.5 direct-abstract-declarator:
  *     "(" abstract-declarator ")"
  *     [direct-abstract-declarator] array-declarator
  *     [direct-abstract-declarator] "(" [parameter-type-list] ")"
  */
-static tree_t declarator(void)
+static tree_t direct_declarator_inner(token_t **name)
 {
-    if (peek()->kind == PN_STAR)
+    tree_t indtype = NULL;
+    token_t *ident = NULL;
+
+    for (;;) switch (peek(1))
     {
-        //#TODO: for parse tree, not AST.
-        token_t *const_q = NULL,
-                *restrict_q = NULL,
-                *volatile_q = NULL;
+        case TOK_IDENTIFIER:
+            ident = consume();
+            break;
 
-        consume();
-
-        for (;;) switch (peek()->kind)
+        // Array declarator.
+        case PN_LSQUARE:
         {
-            case KW_CONST:
-                const_q = consume();
-                break;
+            tree_t specs;
+            tree_t dimension = NULL;
 
-            case KW_RESTRICT:
-                restrict_q = consume();
-                break;
+            consume();
+            specs = declaration_specifiers();
 
-            case KW_VOLATILE:
-                volatile_q = consume();
-                break;
+            if (next_is(PN_STAR))
+                dimension = finish_special(consume());
+            else if (!next_is(PN_RSQUARE))
+                dimension = assignment_expression();
 
-            default:
-                return new_pointer();
+            indtype = finish_array(indtype, specs, dimension);
+            expect(PN_RSQUARE);
+            break;
         }
+
+        // Function or group.
+        case PN_LPAREN:
+        {
+            bool is_group;
+            consume();
+
+            if (name && !ident)
+                is_group = true;
+            else if (next_is(PN_RPAREN) || starts_declaration())
+                is_group = false;
+            else
+                is_group = true;
+
+            if (is_group)
+            {
+                indtype = declarator_inner(&ident);
+                expect(PN_RPAREN);
+                break;
+            }
+
+            list_t params = new_list();
+
+            while (!accept(PN_RPAREN))
+            {
+                if (next_is(PN_ELLIPSIS))
+                    add_to_list(params, finish_special(consume()));
+                else
+                {
+                    tree_t specs = declaration_specifiers();
+                    tree_t declarator = init_declarator();
+                    add_to_list(params, finish_parameter(specs, declarator));
+                }
+
+                if (!next_is(PN_RPAREN))
+                    expect(PN_COMMA);
+            }
+
+            indtype = finish_function(indtype, params);
+            break;
+        }
+
+        default:
+            if (name)
+                *name = ident;
+
+            return indtype;
     }
+}
+
+
+/*!
+ * compound-literal:
+ *     "{" initializer-list [","] "}"
+ *
+ * C99 6.7.8 initializer-list:
+ *     [initializer-list ","] [designation] initializer
+ *
+ * C99 6.7.8 designation:
+ *     [designator]+ "="
+ *
+ * C99 6.7.8 designator:
+ *     "[" constant-expression "]"
+ *     "." identifier
+ */
+static tree_t compound_literal(tree_t type)
+{
+    list_t members = new_list();
+    expect(PN_LBRACE);
+
+    while (!accept(PN_RBRACE))
+    {
+        list_t designators = NULL;
+
+        // Parse any designators.
+        while (next_is(PN_LSQUARE) || next_is(PN_PERIOD))
+        {
+            if (!designators)
+                designators = new_list();
+
+            if (consume()->kind == PN_LSQUARE)
+            {
+                add_to_list(designators, constant_expression());
+                expect(PN_RSQUARE);
+            }
+            else
+                add_to_list(designators, finish_identifier(consume()));
+
+            expect(PN_EQ);
+        }
+
+        add_to_list(members, finish_comp_member(designators, initializer()));
+
+        if (!next_is(PN_RBRACE))
+            expect(PN_COMMA);
+    }
+
+    return finish_comp_literal(type, members);
+}
+
+
+/*!
+ * C99 6.7.8 initializer:
+ *     assignment-expression
+ *     compound-literal
+ */
+static tree_t initializer(void)
+{
+    return next_is(PN_LBRACE) ? compound_literal(NULL)
+                              : assignment_expression();
+}
+
+
+/*!
+ * C99 6.7.6 type-name:
+ *     specifier-qualifier-list [abstract-declarator]
+ */
+static tree_t type_name(void)
+{
+    tree_t specs = declaration_specifiers();
+    tree_t decl = declarator_inner(NULL);
+
+    return finish_type_name(specs, decl);
 }
 
 
@@ -520,262 +1410,49 @@ static tree_t declarator(void)
  * C99 6.7 declaration:
  *     declaration-specifiers [init-declarator-list] ";"
  *
- * C99 6.7 init-declarator-list:
- *     init-declarator
- *     init-declarator-list "," init-declarator
- *
- * C99 6.7.1 init-declarator:
- *     declarator
- *     declarator "=" initializer
- *
  * C99 6.9.1 function-definition:
  *     declaration-specifiers declarator [declaration-list] compound-statement
  *
  * C99 6.9.1 declaration-list:
- *     declaration
- *     declaration-list declaration
+ *     [declaration]+
  */
 static tree_t declaration_or_fn_definition(void)
 {
     tree_t specs = declaration_specifiers();
-    tree_t decl;
+    struct declarator_s *declarator;
 
-    if (keep()->kind == PN_SEMI)
-        return new_declaration(specs, new_list());
+    if (next_is(PN_SEMI))
+        return finish_declaration(specs, new_list());
 
-    decl = declarator();
+    declarator = (struct declarator_s *)init_declarator();
 
-    //#TODO: add support for declaration-list.
-    if (keep()->kind == PN_LBRACE)
+    // Function definition.
+    if (!declarator->init && !next_is(PN_SEMI) &&
+        declarator->indtype->type == FUNCTION)
     {
-        tree_t body = compound_statement();
-        return new_func_definition(specs, decl, body);
+        list_t old_decls = NULL;
+        tree_t body;
+
+        // Old-style declaration list.
+        if (!next_is(PN_LBRACE))
+        {
+            old_decls = new_list();
+            while (!next_is(PN_LBRACE))
+                add_to_list(old_decls, declaration());
+        }
+
+        body = compound_statement();
+        return finish_function_def(specs, (tree_t)declarator, old_decls, body);
     }
-    else
-    {
-        list_t decls = new_list();
 
-        //#TODO: refactor me.
-        for (; peek()->kind != PN_SEMI; add_to_list(decls, decl))
-            switch (peek()->kind)
-            {
-                case PN_COMMA:
-                case PN_SEMI:
-                    consume();
-
-                case PN_EQ:
-                    token_t *op = consume();
-                    decl = new_assignment(decl, op, initializer());
-
-                default:
-                    //#TODO: add skipping.
-                    assert(0);
-            }
-
-        return new_declaration(specs, decls);
-    }
+    // Declaration, otherwise.
+    return declaration_inner(specs, (tree_t)declarator);
 }
 
 
 /////////////////
 // Statements. //
 /////////////////
-
-/*!
- * C99 6.8.1 labeled-statement:
- *     identifier ":" statement
- *     "case" constant-expression ":" statement
- *     "default" ":" statement
- */
-static tree_t labeled_statement(void)
-{
-    switch (peek()->kind)
-    {
-        case KW_CASE:
-            tree_t const_expr = constant_expression();
-            expect(TOK_PN_COLON);
-
-            return new_case(const_expr, statement());
-
-        case TOK_IDENTIFIER:
-            token_t *ident = peek();
-            expect(TOK_PN_COLON);
-
-            return new_label(ident, statement());
-
-        case KW_DEFAULT:
-            expect(TOK_PN_COLON);
-
-            return new_default(statement());
-    }
-
-    assert(0);
-}
-
-
-/*!
- * C99 6.8.2 compound-statement:
- *     "{" [block-item-list] "}"
- *
- * C99 6.8.2 block-item-list:
- *     block-item
- *     block-item-list block-item
- *
- * C99 6.8.2 block-item:
- *     declaration
- *     statement
- *
- * In problem "X * Y" we prefer declaration to statement.
- */
-static tree_t compound_statement(void)
-{
-    assert(peek()->kind == PN_LBRACE);
-
-    list_t entities = new_list();
-
-    expect(PN_LBRACE);
-    // ...
-    expect(PN_RBRACE);
-
-    return new_block(entities);
-}
-
-
-/*!
- * C99 6.8.3 expression-statement:
- *     [expression] ";"
- */
-static tree_t expression_statement(void)
-{
-    tree_t expr = peek()->kind == PN_SEMI ? NULL : expression();
-    //#TODO: what about macro w/o semicolon?
-    expect(PN_SEMI);
-    return new_expr_stmt(expr);
-}
-
-
-/*!
- * C99 6.8.4 selection-statement:
- *     "if" "(" expression ")" statement
- *     "if" "(" expression ")" statement "else" statement
- *     "switch" "(" expression ")" statement
- */
-static tree_t selection_statement(void)
-{
-    enum token_e kind = peek()->kind;
-    consume();
-
-    switch (kind)
-    {
-        case KW_IF:
-            expect(PN_LPAREN);
-            tree_t cond = expression();
-            expect(PN_RPAREN);
-            tree_t then_br = statement();
-            tree_t else_br = NULL;
-
-            if (peek()->kind == KW_ELSE)
-            {
-                consume();
-                else_br = statement();
-            }
-
-            return new_if(cond, then_br, else_br);
-
-        case KW_SWITCH:
-            expect(PN_LPAREN);
-            tree_t cond = expression();
-            expect(PN_RPAREN);
-            tree_t body = statement();
-
-            return new_switch(cond, body);
-    }
-
-    assert(0);
-}
-
-
-/*!
- * C99 6.8.5 iteration-statement:
- *     "while" "(" expression ")" statement
- *     "do" statement "while" "(" expression ")" ";"
- *     "for" "(" [expression] ";" [expression] ";" [expression] ")" statement
- *     "for" "(" declaration [expression] ";" [expression] ")" statement
- */
-static tree_t iteration_statement(void)
-{
-    enum token_e kind = peek()->kind;
-    consume();
-
-    switch (kind)
-    {
-        case KW_WHILE:
-            expect(PN_LPAREN);
-            tree_t cond = expression();
-            expect(PN_RPAREN);
-            tree_t body = statement();
-
-            return new_while(cond, body);
-
-        case KW_DO:
-            tree_t body = statement();
-            expect(KW_WHILE);
-            expect(PN_LPAREN);
-            tree_t cond = expression();
-            expect(PN_RPAREN);
-            expect(PN_SEMI);
-
-            return new_do_while(cond, body);
-
-        case KW_FOR:
-            expect(PN_LPAREN);
-
-            if (peek()->kind == PN_SEMI)
-            {
-                // ...
-            }
-    }
-
-    assert(0);
-}
-
-
-/*!
- * C99 6.8.6 jump-statement:
- *     "goto" identifier ";"
- *     "continue" ";"
- *     "break" ";"
- *     "return" [expression] ";"
- */
-static tree_t jump_statement(void)
-{
-    enum token_e kind = peek()->kind;
-    consume();
-
-    switch (kind)
-    {
-        case KW_GOTO:
-            token_t *label = expect(TOK_IDENTIFIER);
-            expect(PN_SEMI);
-            return new_goto(label);
-
-        case KW_CONTINUE:
-            expect(PN_SEMI);
-            return new_continue();
-
-        case KW_BREAK:
-            expect(PN_SEMI);
-            return new_break();
-
-        case KW_RETURN:
-            tree_t expr = peek()->kind == PN_SEMI ? NULL : expression();
-            expect(PN_SEMI);
-            return new_return(expr);
-    }
-
-    assert(0);
-}
-
 
 /*!
  * C99 6.8 statement:
@@ -788,15 +1465,15 @@ static tree_t jump_statement(void)
  */
 static tree_t statement(void)
 {
-    switch (peek()->kind)
+    switch (peek(1))
     {
         case KW_CASE:
         case KW_DEFAULT:
             return labeled_statement();
 
         case TOK_IDENTIFIER:
-            return peek_2nd()->kind == TOK_PN_COLON ? labeled_statement()
-                                                    : expression_statement();
+            return peek(2) == PN_COLON ? labeled_statement()
+                                       : expression_statement();
 
         case PN_LBRACE:
             return compound_statement();
@@ -815,17 +1492,221 @@ static tree_t statement(void)
         case KW_BREAK:
         case KW_RETURN:
             return jump_statement();
-
-        default:
-            return expression_statement();
     }
+
+    return expression_statement();
+}
+
+
+/*!
+ * C99 6.8.1 labeled-statement:
+ *     identifier ":" statement
+ *     "case" constant-expression ":" statement
+ *     "default" ":" statement
+ */
+static tree_t labeled_statement(void)
+{
+    switch (peek(1))
+    {
+        case KW_CASE:
+        {
+            tree_t const_expr;
+            consume();
+            const_expr = constant_expression();
+            expect(PN_COLON);
+
+            return finish_case(const_expr, statement());
+        }
+
+        case TOK_IDENTIFIER:
+        {
+            token_t *ident = consume();
+            expect(PN_COLON);
+
+            return finish_label(ident, statement());
+        }
+
+        case KW_DEFAULT:
+            consume();
+            expect(PN_COLON);
+
+            return finish_default(statement());
+    }
+
+    return NULL;
+}
+
+
+/*!
+ * C99 6.8.2 compound-statement:
+ *     "{" [block-item-list] "}"
+ *
+ * C99 6.8.2 block-item-list:
+ *     [block-item]+
+ *
+ * C99 6.8.2 block-item:
+ *     declaration
+ *     statement
+ */
+static tree_t compound_statement(void)
+{
+    list_t entities = new_list();
+    expect(PN_LBRACE);
+
+    while (!accept(PN_RBRACE))
+        add_to_list(entities, starts_declaration() ? declaration()
+                                                   : statement());
+
+    return finish_block(entities);
+}
+
+
+/*!
+ * C99 6.8.3 expression-statement:
+ *     [expression] ";"
+ */
+static tree_t expression_statement(void)
+{
+    tree_t expr = next_is(PN_SEMI) ? finish_empty() : expression();
+    accept(PN_SEMI);
+    return expr;
+}
+
+
+/*!
+ * C99 6.8.4 selection-statement:
+ *     "if" "(" expression ")" statement ["else" statement]
+ *     "switch" "(" expression ")" statement
+ */
+static tree_t selection_statement(void)
+{
+    if (accept(KW_IF))
+    {
+        tree_t cond, then_br, else_br = NULL;
+
+        expect(PN_LPAREN);
+        cond = expression();
+        expect(PN_RPAREN);
+        then_br = statement();
+
+        if (accept(KW_ELSE))
+            else_br = statement();
+
+        return finish_if(cond, then_br, else_br);
+    }
+
+    if (accept(KW_SWITCH))
+    {
+        tree_t cond, body;
+
+        expect(PN_LPAREN);
+        cond = expression();
+        expect(PN_RPAREN);
+        body = statement();
+
+        return finish_switch(cond, body);
+    }
+
+    return NULL;
+}
+
+
+/*!
+ * C99 6.8.5 iteration-statement:
+ *     "while" "(" expression ")" statement
+ *     "do" statement "while" "(" expression ")" ";"
+ *     "for" "(" [expression] ";" [expression] ";" [expression] ")" statement
+ *     "for" "(" declaration [expression] ";" [expression] ")" statement
+ */
+static tree_t iteration_statement(void)
+{
+    tree_t cond, body;
+
+    switch (consume()->kind)
+    {
+        case KW_WHILE:
+            expect(PN_LPAREN);
+            cond = expression();
+            expect(PN_RPAREN);
+            body = statement();
+
+            return finish_while(cond, body);
+
+        case KW_DO:
+            body = statement();
+            expect(KW_WHILE);
+            expect(PN_LPAREN);
+            cond = expression();
+            expect(PN_RPAREN);
+            expect(PN_SEMI);
+
+            return finish_do_while(body, cond);
+
+        case KW_FOR:
+        {
+            tree_t init = NULL, next;
+            expect(PN_LPAREN);
+
+            if (!next_is(PN_SEMI))
+                init = starts_declaration() ? declaration() : expression();
+
+            expect(PN_SEMI);
+            cond = next_is(PN_SEMI) ? expression() : NULL;
+            expect(PN_SEMI);
+            next = next_is(PN_RPAREN) ? expression() : NULL;
+            expect(PN_RPAREN);
+            body = statement();
+
+            return finish_for(init, cond, next, body);
+        }
+    }
+
+    return NULL;
+}
+
+
+/*!
+ * C99 6.8.6 jump-statement:
+ *     "goto" identifier ";"
+ *     "continue" ";"
+ *     "break" ";"
+ *     "return" [expression] ";"
+ */
+static tree_t jump_statement(void)
+{
+    tree_t stmt = NULL;
+
+    switch (consume()->kind)
+    {
+        case KW_GOTO:
+            stmt = finish_goto(expect(TOK_IDENTIFIER));
+            break;
+
+        case KW_CONTINUE:
+            stmt = finish_continue();
+            break;
+
+        case KW_BREAK:
+            stmt = finish_break();
+            break;
+
+        case KW_RETURN:
+        {
+            tree_t expr = next_is(PN_SEMI) ? NULL : expression();
+            expect(PN_SEMI);
+            stmt = finish_return(expr);
+            break;
+        }
+    }
+
+    expect(PN_SEMI);
+    return stmt;
 }
 
 
 /*!
  * C99 6.9 translation-unit:
- *     external-declaration
- *     translation-unit external-declaration
+ *     [external-declaration]+
  *
  * C99 6.9 external-declaration:
  *     function-definition
@@ -835,10 +1716,10 @@ static tree_t translation_unit(void)
 {
     list_t entities = new_list();
 
-    while (/* there is next token */)
+    while (!accept(TOK_EOF))
         add_to_list(entities, declaration_or_fn_definition());
 
-    return new_transl_unit(entities);
+    return finish_transl_unit(entities);
 }
 
 

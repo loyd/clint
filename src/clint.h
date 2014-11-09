@@ -14,29 +14,13 @@
 #include "tree.h"
 
 
-enum token_e {
-#define XX(kind, word) kind,
-    TOK_MAP(XX)
-#undef XX
-};
-
-
-typedef struct {
-    enum token_e kind;
-
-    struct {
-        int line;    //!< 1-indexed
-        int column;  //!< 1-indexed
-    } start, end;
-} token_t;
-
-
 typedef struct {
     char *name;
     char *data;
     char **lines;  //!< 1-indexed
     int nlines;
-    tree_t *tree;
+    tree_t tree;
+    token_t *tokens;
 } file_t;
 
 
@@ -67,7 +51,7 @@ extern void *warn_at(file_t *file, int line, int column, const char *fmt, ...)
  */
 //!@{
 extern void init_lexer(file_t *file);
-extern bool pull_token(token_t *token);
+extern void pull_token(token_t *token);
 extern const char *stringify_token(token_t *token);
 //!@}
 
