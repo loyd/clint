@@ -25,8 +25,13 @@ static bool _check(const char *input, enum token_e expected[], int len)
     init_lexer(&file);
 
     int i = 0;
-    while (pull_token(&tok) && i < len+1)
+    pull_token(&tok);
+
+    while (tok.kind != TOK_EOF && i < len+1)
+    {
         actual[i++] = tok.kind;
+        pull_token(&tok);
+    }
 
     if (i < len)
     {
