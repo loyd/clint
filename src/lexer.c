@@ -452,22 +452,25 @@ static bool header_name(token_t *token)
 }
 
 
-bool pull_token(token_t *token)
+void pull_token(token_t *token)
 {
     assert(token);
 
     bool success;
     skip_spaces();
 
-    // EOB.
-    if (!*ch)
-        return false;
-
     token->start.line = fp->nlines;
     token->start.column = ch - fp->lines[fp->nlines] + 1;
 
     switch (*ch)
     {
+        // EOB.
+        case '\0':
+            //#TODO: add skipping of suddenly '\0'.
+            token->kind = TOK_EOF;
+            success = true;
+            break;
+
         // Numbers.
         case '0': case '1': case '2': case '3': case '4':
         case '5': case '6': case '7': case '8': case '9':
@@ -568,8 +571,6 @@ bool pull_token(token_t *token)
 
     token->end.line = fp->nlines;
     token->end.column = ch - fp->lines[fp->nlines];
-
-    return true;
 }
 
 

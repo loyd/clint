@@ -6,6 +6,7 @@
 #define __TOKENS_H__
 
 #define TOK_MAP(XX)                                                           \
+    XX(TOK_EOF, "(eof)")                                                      \
     XX(TOK_UNKNOWN, "(unknown)")                                              \
     XX(TOK_COMMENT, "(comment)")                                              \
     XX(TOK_IDENTIFIER, "(identifier)")                                        \
@@ -122,5 +123,23 @@
     XX(PN_COMMA, ",")                                                         \
     XX(PN_HASH, "#")                                                          \
     XX(PN_HASHHASH, "##")
+
+
+enum token_e {
+#define XX(kind, word) kind,
+    TOK_MAP(XX)
+#undef XX
+};
+
+
+typedef struct {
+    enum token_e kind;
+
+    struct {
+        int line;    //!< 1-indexed
+        int column;  //!< 1-indexed
+    } start, end;
+} token_t;
+
 
 #endif  // __TOKENS_H__
