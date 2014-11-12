@@ -9,11 +9,6 @@
 #include "tokens.h"
 
 
-
-#include <stdio.h>
-
-
-
 #define TOKENS_INIT_SIZE 50
 #define TOKENS_SIZE_FACTOR 3
 
@@ -103,8 +98,6 @@ static token_t *expect(enum token_e kind)
     //#TODO: error handling.
     if (next_is(kind))
         return consume();
-    else
-        fprintf(stderr, "!!!!!!!\n");
 
     return NULL;
 }
@@ -1018,17 +1011,16 @@ static tree_t declaration_specifiers(void)
 
         // Struct or union.
         case KW_STRUCT: case KW_UNION:
-            //#TODO: handle this case.
-            // if (dirtype)
-            //     despose_tree(dirtype);
+            if (dirtype)
+                dispose_tree(dirtype);
 
             dirtype = struct_or_union_specifier();
             break;
 
         // Enumeration.
         case KW_ENUM:
-            // if (dirtype)
-            //     despose_tree(dirtype);
+            if (dirtype)
+                dispose_tree(dirtype);
 
             dirtype = enum_specifier();
             break;
@@ -1051,9 +1043,8 @@ static tree_t declaration_specifiers(void)
         default:
             if (names)
             {
-                //#TODO: struct-like vs id names.
-                // if (dirtype)
-                //     dispose_tree(dirtype);
+                if (dirtype)
+                    dispose_tree(dirtype);
 
                 dirtype = finish_id_type(names);
             }

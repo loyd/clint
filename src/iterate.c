@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "clint.h"
@@ -455,4 +456,26 @@ char *stringify_tree(tree_t tree)
     str = NULL;
 
     return output;
+}
+
+
+static void dispose_cb(const char *prop, enum item_e what, void *raw)
+{
+    // Dispose entries.
+    if (what == NODES || what == TOKENS)
+        for (entry_t next, curr = ((list_t)raw)->first; curr; curr = next)
+        {
+            next = curr->next;
+            free(curr);
+        }
+
+    // Not related to the tree directly.
+    if (what != TOKEN)
+        free(raw);
+}
+
+
+void dispose_tree(tree_t tree)
+{
+    iterate(NULL, NODE, tree, NULL, dispose_cb);
 }

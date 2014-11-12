@@ -47,6 +47,7 @@ extern void *warn_at(file_t *file, int line, int column, const char *fmt, ...)
 
 
 extern char *stringify_tree(tree_t tree);
+extern void dispose_tree(tree_t tree);
 
 
 /*!

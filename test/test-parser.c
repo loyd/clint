@@ -55,7 +55,7 @@ static bool check(bool full, const char *input, const char *expected)
     }
 
     free(actual);
-    // dispose_tree(file.tree);
+    dispose_tree(file.tree);
 
     return true;
 }
