@@ -22,9 +22,9 @@ enum type_e {
 
     // Direct types.
     ID_TYPE,            // {#names[]}
-    STRUCT,             // {#name*, members[]}
-    UNION,              // {#name*, members[]}
-    ENUM,               // {#name*, values[]}
+    STRUCT,             // {#name*, members*[]}
+    UNION,              // {#name*, members*[]}
+    ENUM,               // {#name*, values*[]}
     ENUMERATOR,         // {#name, value*}
 
     // Indirect types.
@@ -81,13 +81,13 @@ typedef struct {
  * List interface.
  */
 //!@{
-struct list_entry_s {
+typedef struct list_entry_s {
     void *data;
     struct list_entry_s *next;
-};
+} *entry_t;
 
 typedef struct {
-    struct list_entry_s *first, *last;
+    entry_t first, last;
 } *list_t;
 //!@}
 

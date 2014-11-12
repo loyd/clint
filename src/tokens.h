@@ -136,6 +136,7 @@ typedef struct {
     enum token_e kind;
 
     struct {
+        const char *cursor;
         int line;    //!< 1-indexed
         int column;  //!< 1-indexed
     } start, end;

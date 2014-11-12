@@ -15,12 +15,12 @@
 
 
 typedef struct {
-    char *name;
-    char *data;
-    char **lines;  //!< 1-indexed
+    const char *name;
+    const char *data;
+    const char **lines;  //!< 1-indexed
     int nlines;
     tree_t tree;
-    token_t *tokens;
+    token_t **tokens;
 } file_t;
 
 
@@ -46,13 +46,15 @@ extern void *warn_at(file_t *file, int line, int column, const char *fmt, ...)
 //!@}
 
 
+extern char *stringify_tree(tree_t tree);
+
+
 /*!
  * @name Lexer
  */
 //!@{
 extern void init_lexer(file_t *file);
 extern void pull_token(token_t *token);
-extern const char *stringify_token(token_t *token);
 //!@}
 
 /*!

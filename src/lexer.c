@@ -21,7 +21,7 @@
  */
 //!@{
 static file_t *fp;
-static char *ch;
+static const char *ch;
 static int max_lines;
 
 static bool parsing_header_name;
@@ -86,19 +86,6 @@ static inline enum token_e find_pp(const char *word, int len)
 
     const struct gperf_s *res = pp_check(word, len);
     return res ? res->code : TOK_UNKNOWN;
-}
-
-
-static inline const char *stringify_kind(enum token_e kind)
-{
-    static const char *words[] = {
-#define XX(kind, word) word,
-    TOK_MAP(XX)
-#undef XX
-    };
-
-    assert(0 <= kind && kind < sizeof(words)/sizeof(*words));
-    return words[kind];
 }
 
 
@@ -276,7 +263,7 @@ static bool identifier(token_t *token)
     assert(token);
     assert(isalpha(*ch) || *ch == '_' || check_ucn());
 
-    char *start = ch;
+    const char *start = ch;
 
     do
         ch += *ch == '\\' ? (ch[1] == 'u' ? 6 : 10) : 1;
@@ -310,6 +297,12 @@ static bool punctuator(token_t *token)
 {
     //#TODO: support for digraphs and trigraphs.
     assert(token);
+
+    static const char *puncts[] = {
+#define XX(kind, word) word,
+    TOK_PN_MAP(XX)
+#undef XX
+    };
 
     enum token_e kind;
 
@@ -385,7 +378,7 @@ static bool punctuator(token_t *token)
             assert(0);
     }
 
-    ch += strlen(stringify_kind(kind));
+    ch += strlen(puncts[kind - PN_LSQUARE]);
 
     token->kind = kind;
     return true;
@@ -459,6 +452,7 @@ void pull_token(token_t *token)
     bool success;
     skip_spaces();
 
+    token->start.cursor = ch;
     token->start.line = fp->nlines;
     token->start.column = ch - fp->lines[fp->nlines] + 1;
 
@@ -558,7 +552,7 @@ void pull_token(token_t *token)
                 break;
             }
 
-        // Fallthrough.
+            // Fallthrough.
 
         default:
             ++ch;
@@ -569,13 +563,7 @@ void pull_token(token_t *token)
     if (!success)
         token->kind = TOK_UNKNOWN;
 
+    token->end.cursor = ch;
     token->end.line = fp->nlines;
     token->end.column = ch - fp->lines[fp->nlines];
-}
-
-
-const char *stringify_token(token_t *token)
-{
-    assert(token);
-    return stringify_kind(token->kind);
 }

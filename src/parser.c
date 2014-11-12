@@ -9,6 +9,11 @@
 #include "tokens.h"
 
 
+
+#include <stdio.h>
+
+
+
 #define TOKENS_INIT_SIZE 50
 #define TOKENS_SIZE_FACTOR 3
 
@@ -30,10 +35,6 @@ static int consumed;
 //!@}
 
 
-#define warn(...)                                                             \
-    warn_at(fp, tokens_buf->start.line, tokens_buf->start.column, __VA_ARGS__)
-
-
 static void init_parser(file_t *file)
 {
     assert(file);
@@ -41,7 +42,7 @@ static void init_parser(file_t *file)
     fp = file;
     init_lexer(fp);
     tokens_size = TOKENS_INIT_SIZE;
-    fp->tokens = xmalloc(tokens_size * sizeof(token_t));
+    fp->tokens = xmalloc(tokens_size * sizeof(token_t *));
     tokens_len = consumed = 0;
 }
 
@@ -57,18 +58,21 @@ static enum token_e peek(int lookahead)
         if (required > tokens_size)
         {
             tokens_size *= TOKENS_SIZE_FACTOR;
-            fp->tokens = xrealloc(fp->tokens, tokens_size * sizeof(token_t));
+            fp->tokens = xrealloc(fp->tokens, tokens_size * sizeof(token_t *));
         }
 
         for (; tokens_len < required; ++tokens_len)
         {
-            pull_token(&fp->tokens[tokens_len]);
-            if (fp->tokens[tokens_len].kind == TOK_EOF)
+            token_t *token = xmalloc(sizeof(token_t));
+            fp->tokens[tokens_len] = token;
+            pull_token(token);
+
+            if (token->kind == TOK_EOF)
                 return TOK_EOF;
         }
     }
 
-    return fp->tokens[required-1].kind;
+    return fp->tokens[required-1]->kind;
 }
 
 
@@ -81,8 +85,7 @@ static inline bool next_is(enum token_e kind)
 static token_t *consume(void)
 {
     peek(1);
-    assert(!next_is(TOK_EOF));
-    return &fp->tokens[consumed++];
+    return fp->tokens[consumed++];
 }
 
 
@@ -100,6 +103,8 @@ static token_t *expect(enum token_e kind)
     //#TODO: error handling.
     if (next_is(kind))
         return consume();
+    else
+        fprintf(stderr, "!!!!!!!\n");
 
     return NULL;
 }
@@ -126,7 +131,10 @@ static void add_to_list(list_t list, void *data)
     entry->data = data;
 
     if (list->last)
+    {
         list->last->next = entry;
+        list->last = entry;
+    }
     else
         list->first = list->last = entry;
 }
@@ -173,7 +181,6 @@ static tree_t finish_specifiers(token_t *storage, token_t *fnspec,
 static tree_t finish_declarator(tree_t indtype, token_t *name,
                                 tree_t init, tree_t bitsize)
 {
-    assert(indtype);
     struct declarator_s *res = xmalloc(sizeof(*res));
     *res = (struct declarator_s){T(DECLARATOR), indtype, name, init, bitsize};
     return finish(res);
@@ -222,7 +229,6 @@ static tree_t finish_id_type(list_t names)
 
 static tree_t finish_struct(token_t *name, list_t members)
 {
-    assert(members);
     struct struct_s *res = xmalloc(sizeof(*res));
     *res = (struct struct_s){T(STRUCT), name, members};
     return finish(res);
@@ -231,7 +237,6 @@ static tree_t finish_struct(token_t *name, list_t members)
 
 static tree_t finish_union(token_t *name, list_t members)
 {
-    assert(members);
     struct union_s *res = xmalloc(sizeof(*res));
     *res = (struct union_s){T(UNION), name, members};
     return finish(res);
@@ -240,7 +245,6 @@ static tree_t finish_union(token_t *name, list_t members)
 
 static tree_t finish_enum(token_t *name, list_t values)
 {
-    assert(values);
     struct enum_s *res = xmalloc(sizeof(*res));
     *res = (struct enum_s){T(ENUM), name, values};
     return finish(res);
@@ -249,7 +253,7 @@ static tree_t finish_enum(token_t *name, list_t values)
 
 static tree_t finish_enumerator(token_t *name, tree_t value)
 {
-    assert(name && value);
+    assert(name);
     struct enumerator_s *res = xmalloc(sizeof(*res));
     *res = (struct enumerator_s){T(ENUMERATOR), name, value};
     return finish(res);
@@ -363,7 +367,6 @@ static tree_t finish_continue(void)
 
 static tree_t finish_return(tree_t result)
 {
-    assert(result);
     struct return_s *res = xmalloc(sizeof(*res));
     *res = (struct return_s){T(RETURN), result};
     return finish(res);
@@ -541,7 +544,10 @@ static bool starts_declaration(void)
         case TOK_IDENTIFIER:
             switch (peek(2))
             {
-                case PN_STAR: case TOK_IDENTIFIER: case KW_TYPEDEF:
+                case PN_STAR:
+                    return peek(3) == TOK_IDENTIFIER;
+
+                case TOK_IDENTIFIER: case KW_TYPEDEF:
                 case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:
                 case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
                     return true;
@@ -750,17 +756,17 @@ static tree_t postfix_expression_suffixes(tree_t left)
 
         case PN_LPAREN:
         {
-            list_t params = new_list();
+            list_t args = new_list();
             consume();
 
             while (!accept(PN_RPAREN))
             {
-                add_to_list(params, assignment_expression());
+                add_to_list(args, assignment_expression());
                 if (!next_is(PN_RPAREN))
                     expect(PN_COMMA);
             }
 
-            left = finish_call(left, params);
+            left = finish_call(left, args);
             break;
         }
 
@@ -930,6 +936,10 @@ static inline tree_t constant_expression(void)
 static tree_t declaration(void)
 {
     tree_t specs = declaration_specifiers();
+
+    if (accept(PN_SEMI))
+        return finish_declaration(specs, NULL);
+
     return declaration_inner(specs, init_declarator());
 }
 
@@ -1287,8 +1297,8 @@ static tree_t direct_declarator_inner(token_t **name)
             bool is_group;
             consume();
 
-            if (name && !ident)
-                is_group = true;
+            if (name)
+                is_group = !ident;
             else if (next_is(PN_RPAREN) || starts_declaration())
                 is_group = false;
             else
@@ -1310,7 +1320,11 @@ static tree_t direct_declarator_inner(token_t **name)
                 else
                 {
                     tree_t specs = declaration_specifiers();
-                    tree_t declarator = init_declarator();
+                    tree_t declarator = NULL;
+
+                    if (!(next_is(PN_COMMA) || next_is(PN_RPAREN)))
+                        declarator = init_declarator();
+
                     add_to_list(params, finish_parameter(specs, declarator));
                 }
 
@@ -1367,9 +1381,10 @@ static tree_t compound_literal(tree_t type)
             }
             else
                 add_to_list(designators, finish_identifier(consume()));
-
-            expect(PN_EQ);
         }
+
+        if (designators)
+            expect(PN_EQ);
 
         add_to_list(members, finish_comp_member(designators, initializer()));
 
@@ -1421,14 +1436,14 @@ static tree_t declaration_or_fn_definition(void)
     tree_t specs = declaration_specifiers();
     struct declarator_s *declarator;
 
-    if (next_is(PN_SEMI))
-        return finish_declaration(specs, new_list());
+    if (accept(PN_SEMI))
+        return finish_declaration(specs, NULL);
 
     declarator = (struct declarator_s *)init_declarator();
 
     // Function definition.
     if (!declarator->init && !next_is(PN_SEMI) &&
-        declarator->indtype->type == FUNCTION)
+        declarator->indtype && declarator->indtype->type == FUNCTION)
     {
         list_t old_decls = NULL;
         tree_t body;
@@ -1647,13 +1662,19 @@ static tree_t iteration_statement(void)
             tree_t init = NULL, next;
             expect(PN_LPAREN);
 
-            if (!next_is(PN_SEMI))
-                init = starts_declaration() ? declaration() : expression();
+            if (next_is(PN_SEMI))
+                consume();
+            else if (starts_declaration())
+                init = declaration();
+            else
+            {
+                init = expression();
+                expect(PN_SEMI);
+            }
 
+            cond = next_is(PN_SEMI) ? NULL : expression();
             expect(PN_SEMI);
-            cond = next_is(PN_SEMI) ? expression() : NULL;
-            expect(PN_SEMI);
-            next = next_is(PN_RPAREN) ? expression() : NULL;
+            next = next_is(PN_RPAREN) ? NULL : expression();
             expect(PN_RPAREN);
             body = statement();
 
@@ -1693,7 +1714,6 @@ static tree_t jump_statement(void)
         case KW_RETURN:
         {
             tree_t expr = next_is(PN_SEMI) ? NULL : expression();
-            expect(PN_SEMI);
             stmt = finish_return(expr);
             break;
         }

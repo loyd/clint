@@ -21,7 +21,7 @@ static bool _check(const char *input, enum token_e expected[], int len)
     static enum token_e actual[20];
     static token_t tok;
 
-    file.data = (char *)input;
+    file.data = input;
     init_lexer(&file);
 
     int i = 0;
@@ -58,9 +58,11 @@ static bool _check(const char *input, enum token_e expected[], int len)
 }
 
 
-GROUP(lexer)
+void test_lexer(void)
 {
-    TEST(identifiers)
+    group("lexer");
+
+    test("identifiers");
     {
         assert(check("_", ((T){TOK_IDENTIFIER})));
         assert(check("b", ((T){TOK_IDENTIFIER})));
@@ -95,7 +97,7 @@ GROUP(lexer)
 #define XX(kind, str)                                                         \
     assert(check(str, ((T){kind})));
 
-    TEST(keywords)
+    test("keywords");
     {
         assert(check("i", ((T){TOK_IDENTIFIER})));
         assert(check("ifo", ((T){TOK_IDENTIFIER})));
@@ -104,7 +106,7 @@ GROUP(lexer)
         TOK_KW_MAP(XX)
     }
 
-    TEST(punctuators)
+    test("punctuators");
     {
         TOK_PN_MAP(XX)
     }
@@ -114,7 +116,7 @@ GROUP(lexer)
     assert(check("#" str, ((T){PN_HASH, kind})));                             \
     assert(check("#  " str, ((T){PN_HASH, kind})));
 
-    TEST(preprocessor keywords)
+    test("preprocessor keywords");
     {
         assert(check("#i", ((T){PN_HASH, TOK_UNKNOWN})));
         assert(check("#for", ((T){PN_HASH, TOK_UNKNOWN})));
@@ -125,7 +127,7 @@ GROUP(lexer)
     }
 #undef XX
 
-    TEST(numeric constants)
+    test("numeric constants");
     {
         // Integers.
         assert(check("0", ((T){TOK_NUM_CONST})));
@@ -188,7 +190,7 @@ GROUP(lexer)
         assert(check("0xfe+", ((T){TOK_NUM_CONST, PN_PLUS})));
     }
 
-    TEST(character constants)
+    test("character constants");
     {
         assert(check("''", ((T){TOK_CHAR_CONST})));
         assert(check("L''", ((T){TOK_CHAR_CONST})));
@@ -209,7 +211,7 @@ GROUP(lexer)
         assert(check("'\\u1234\n", ((T){TOK_UNKNOWN})));
     }
 
-    TEST(strings)
+    test("strings");
     {
         assert(check("\"\"", ((T){TOK_STRING})));
         assert(check("L\"\"", ((T){TOK_STRING})));
@@ -229,7 +231,7 @@ GROUP(lexer)
         assert(check("\"\\u1234\n", ((T){TOK_UNKNOWN})));
     }
 
-    TEST(header names)
+    test("header names");
     {
         assert(check("#include <test.h>",
                      ((T){PN_HASH, PP_INCLUDE, TOK_HEADER_NAME})));
@@ -241,7 +243,7 @@ GROUP(lexer)
                      ((T){PN_HASH, PP_INCLUDE, TOK_UNKNOWN})));
     }
 
-    TEST(comments)
+    test("comments");
     {
         assert(check("// test comment", ((T){TOK_COMMENT})));
         assert(check("//", ((T){TOK_COMMENT})));

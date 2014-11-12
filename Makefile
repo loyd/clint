@@ -1,22 +1,22 @@
 CC := clang -std=c99
 
 CFLAGS := -pedantic -Werror -Wall -Wextra -Wshadow -Wundef -Wunreachable-code \
-          -Winit-self -Wstrict-overflow=3 -Wlogical-op -Wmissing-declarations \
-          -Wmissing-prototypes -Wold-style-definition -Wstrict-prototypes     \
-          -Wpointer-arith -Wnested-externs -Wbad-function-cast -Wwrite-strings\
-          -Wno-switch -Wno-logical-op-parentheses -Wno-unknown-warning-option \
-          -Wno-missing-field-initializers -Wno-dangling-else
+          -Wold-style-definition -Wmissing-declarations -Wmissing-prototypes  \
+          -Wstrict-prototypes -Wnested-externs -Wwrite-strings -Wwrite-strings\
+          -Winit-self -Wwrite-strings -Wbad-function-cast -Wstrict-overflow=3 \
+          -Wpointer-arith -Wno-missing-field-initializers -Wno-dangling-else  \
+          -Wno-unused-parameter -Wno-logical-op-parentheses -Wno-switch
 
 GPERF := gperf
 RM := rm
 
-COMMON := src/utils.o src/lexer.o src/parser.o
+COMMON := src/utils.o src/iterate.o src/lexer.o src/parser.o
 
 
 clint: $(COMMON) src/cli.c
 	$(CC) $(CFLAGS) $^ -o $@
 
-run-test: $(COMMON) test/*.[ch]
+run-test: $(COMMON) test/*
 	$(CC) -iquotesrc $(COMMON) $(wildcard test/*.c) -o $@
 	./$@
 
