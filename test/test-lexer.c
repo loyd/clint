@@ -100,6 +100,7 @@ void test_lexer(void)
     test("keywords");
     {
         assert(check("i", ((T){TOK_IDENTIFIER})));
+        assert(check("i{", ((T){TOK_IDENTIFIER, PN_LBRACE})));
         assert(check("ifo", ((T){TOK_IDENTIFIER})));
         assert(check("elif", ((T){TOK_IDENTIFIER})));
 
@@ -119,8 +120,9 @@ void test_lexer(void)
     test("preprocessor keywords");
     {
         assert(check("#i", ((T){PN_HASH, TOK_UNKNOWN})));
-        assert(check("#for", ((T){PN_HASH, TOK_UNKNOWN})));
+        assert(check("#i{", ((T){PN_HASH, TOK_UNKNOWN, PN_LBRACE})));
         assert(check("#ifo", ((T){PN_HASH, TOK_UNKNOWN})));
+        assert(check("#for", ((T){PN_HASH, TOK_UNKNOWN})));
         assert(check("# for", ((T){PN_HASH, TOK_UNKNOWN})));
 
         TOK_PP_MAP(XX)

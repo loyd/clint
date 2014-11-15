@@ -20,6 +20,9 @@
 
 /*! C99 6.4.1: Keywords. */
 #define TOK_KW_MAP(XX)                                                        \
+    XX(KW_BOOL, "_Bool")                                                      \
+    XX(KW_COMPLEX, "_Complex")                                                \
+    XX(KW_IMAGINARY, "_Imaginary")                                            \
     XX(KW_AUTO, "auto")                                                       \
     XX(KW_BREAK, "break")                                                     \
     XX(KW_CASE, "case")                                                       \
@@ -53,25 +56,22 @@
     XX(KW_UNSIGNED, "unsigned")                                               \
     XX(KW_VOID, "void")                                                       \
     XX(KW_VOLATILE, "volatile")                                               \
-    XX(KW_WHILE, "while")                                                     \
-    XX(KW_BOOL, "_Bool")                                                      \
-    XX(KW_COMPLEX, "_Complex")                                                \
-    XX(KW_IMAGINARY, "_Imaginary")
+    XX(KW_WHILE, "while")
 
 /*! C99 6.10: Preprocessor. */
 #define TOK_PP_MAP(XX)                                                        \
-    XX(PP_IF, "if")                                                           \
-    XX(PP_IFDEF, "ifdef")                                                     \
-    XX(PP_IFNDEF, "ifndef")                                                   \
+    XX(PP_DEFINE, "define")                                                   \
     XX(PP_ELIF, "elif")                                                       \
     XX(PP_ELSE, "else")                                                       \
     XX(PP_ENDIF, "endif")                                                     \
-    XX(PP_INCLUDE, "include")                                                 \
-    XX(PP_DEFINE, "define")                                                   \
-    XX(PP_UNDEF, "undef")                                                     \
-    XX(PP_LINE, "line")                                                       \
     XX(PP_ERROR, "error")                                                     \
-    XX(PP_PRAGMA, "pragma")
+    XX(PP_IF, "if")                                                           \
+    XX(PP_IFDEF, "ifdef")                                                     \
+    XX(PP_IFNDEF, "ifndef")                                                   \
+    XX(PP_INCLUDE, "include")                                                 \
+    XX(PP_LINE, "line")                                                       \
+    XX(PP_PRAGMA, "pragma")                                                   \
+    XX(PP_UNDEF, "undef")
 
 /*! C99 6.4.6: Punctuators. */
 #define TOK_PN_MAP(XX)                                                        \
