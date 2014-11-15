@@ -1101,35 +1101,25 @@ static tree_t declaration_specifiers(bool agressive)
  */
 static tree_t struct_or_union_specifier(void)
 {
-    //#TODO: add support for bitsize field.
+    assert(next_is(KW_STRUCT) || next_is(KW_UNION));
 
     tree_t (*ctor)(token_t *, list_t);
-    token_t *name = NULL;
+    token_t *name;
     list_t members;
 
-    if (accept(KW_STRUCT))
-        ctor = finish_struct;
-    else
-    {
-        expect(KW_UNION);
-        ctor = finish_union;
-    }
+    ctor = consume()->kind == KW_UNION ? finish_union : finish_struct;
 
-    if (next_is(TOK_IDENTIFIER))
-    {
-        name = consume();
-        if (!next_is(PN_LBRACE))
-            return ctor(name, NULL);
-    }
+    // Parse name.
+    name = accept(TOK_IDENTIFIER);
 
-    expect(PN_LBRACE);
+    if (!accept(PN_LBRACE))
+        return ctor(name, NULL);
+
     members = new_list();
 
+    // Members.
     while (!accept(PN_RBRACE))
-    {
         add_to_list(members, declaration());
-        accept(PN_SEMI);
-    }
 
     return ctor(name, members);
 }
@@ -1181,17 +1171,27 @@ static tree_t enum_specifier(void)
 /*!
  * C99 6.7.1 init-declarator:
  *     declarator ["=" initializer]
+ *
+ * C99 6.7.2.1 struct-declarator:
+ *     declarator
+ *     [declarator] ":" constant-expression
  */
 static tree_t init_declarator(void)
 {
-    token_t *name;
+    token_t *name = NULL;
     tree_t init = NULL;
-    tree_t indtype = declarator_inner(&name);
+    tree_t indtype = NULL;
+    tree_t bitsize = NULL;
+
+    if (!next_is(PN_COLON))
+        indtype = declarator_inner(&name);
 
     if (accept(PN_EQ))
         init = initializer();
+    else if (accept(PN_COLON))
+        bitsize = constant_expression();
 
-    return finish_declarator(indtype, name, init, NULL);
+    return finish_declarator(indtype, name, init, bitsize);
 }
 
 

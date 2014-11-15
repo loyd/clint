@@ -1751,6 +1751,46 @@ transl-unit
     ]
 ~~~~~~~~~~~~~~~~
 
+bitsize
+=======
+    struct {
+        int a : 5, b;
+        : 8;
+    } var;
+~~~~~~~
+transl-unit
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype struct
+                    :members [
+                        declaration
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(int)]
+                            :decls [
+                                declarator
+                                    :name (a)
+                                    :bitsize constant
+                                        :value (5)
+                                declarator
+                                    :name (b)
+                            ]
+                        declaration
+                            :specs specifiers
+                            :decls [
+                                declarator
+                                    :bitsize constant
+                                        :value (8)
+                            ]
+                    ]
+            :decls [
+                declarator
+                    :name (var)
+            ]
+    ]
+~~~~~~~
+
 enum specifier
 ==============
     enum e { i, j = 20 };
