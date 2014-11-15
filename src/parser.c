@@ -152,7 +152,6 @@ static tree_t finish_transl_unit(list_t entities)
 
 static tree_t finish_declaration(tree_t specs, list_t decls)
 {
-    assert(specs);
     struct declaration_s *res = xmalloc(sizeof(*res));
     *res = (struct declaration_s){T(DECLARATION), specs, decls};
     return finish(res);
@@ -183,7 +182,7 @@ static tree_t finish_declarator(tree_t indtype, token_t *name,
 static tree_t finish_function_def(tree_t specs, tree_t decl,
                                   list_t old_decls, tree_t body)
 {
-    assert(specs && decl && body);
+    assert(decl && body);
     struct function_def_s *res = xmalloc(sizeof(*res));
     *res = (struct function_def_s){
         T(FUNCTION_DEF), specs, decl, old_decls, body
@@ -195,7 +194,6 @@ static tree_t finish_function_def(tree_t specs, tree_t decl,
 
 static tree_t finish_parameter(tree_t specs, tree_t decl)
 {
-    assert(specs);
     struct parameter_s *res = xmalloc(sizeof(*res));
     *res = (struct parameter_s){T(PARAMETER), specs, decl};
     return finish(res);
@@ -204,7 +202,6 @@ static tree_t finish_parameter(tree_t specs, tree_t decl)
 
 static tree_t finish_type_name(tree_t specs, tree_t decl)
 {
-    assert(specs);
     struct type_name_s *res = xmalloc(sizeof(*res));
     *res = (struct type_name_s){T(TYPE_NAME), specs, decl};
     return finish(res);
@@ -255,7 +252,6 @@ static tree_t finish_enumerator(token_t *name, tree_t value)
 
 static tree_t finish_pointer(tree_t indtype, tree_t specs)
 {
-    assert(specs);
     struct pointer_s *res = xmalloc(sizeof(*res));
     *res = (struct pointer_s){T(POINTER), indtype, specs};
     return finish(res);
@@ -1068,6 +1064,9 @@ static tree_t declaration_specifiers(bool agressive)
 
                 dirtype = finish_id_type(names);
             }
+
+            if (!(dirtype || storage || quals || fnspec))
+                return NULL;
 
             return finish_specifiers(storage, fnspec, quals, dirtype);
     }

@@ -13,12 +13,12 @@ enum type_e {
     TRANSL_UNIT,        // {entities[]}
 
     // Declarations.
-    DECLARATION,        // {specs, decls*[]}
+    DECLARATION,        // {specs*, decls*[]}
     SPECIFIERS,         // {#storage*, #fnspec*, #quals*[], dirtype*}
     DECLARATOR,         // {indtype*, #name*, init*, bitsize*}
-    FUNCTION_DEF,       // {specs, decl, old_decls*[], body}
-    PARAMETER,          // {specs, decl*} (decl can be ellipsis)
-    TYPE_NAME,          // {specs, decl*} (abstract decl)
+    FUNCTION_DEF,       // {specs*, decl, old_decls*[], body}
+    PARAMETER,          // {specs*, decl*} (decl can be ellipsis)
+    TYPE_NAME,          // {specs*, decl*} (abstract decl)
 
     // Direct types.
     ID_TYPE,            // {#names[]}
@@ -28,7 +28,7 @@ enum type_e {
     ENUMERATOR,         // {#name, value*}
 
     // Indirect types.
-    POINTER,            // {indtype*, specs}
+    POINTER,            // {indtype*, specs*}
     ARRAY,              // {indtype*, dim_specs*, dim*}
     FUNCTION,           // {indtype*, params[]}
 

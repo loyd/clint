@@ -199,8 +199,6 @@ transl-unit
                             :decl declarator
                                 :indtype pointer
                                     :indtype pointer
-                                        :specs specifiers
-                                    :specs specifiers
                     ]
                 :name (main)
             :body block
@@ -312,8 +310,6 @@ transl-unit
                             :decl declarator
                                 :indtype pointer
                                     :indtype pointer
-                                        :specs specifiers
-                                    :specs specifiers
                                 :name (b)
                     ]
                 :name (main)
@@ -354,8 +350,6 @@ transl-unit
                         declarator
                             :indtype pointer
                                 :indtype pointer
-                                    :specs specifiers
-                                :specs specifiers
                             :name (argv)
                     ]
                 declaration
@@ -394,7 +388,6 @@ transl-unit
                     :indtype pointer
                         :indtype function
                             :params []
-                        :specs specifiers
                     :name (func)
             ]
         declaration
@@ -420,7 +413,6 @@ transl-unit
                         :indtype pointer
                             :indtype function
                                 :params []
-                            :specs specifiers
                         :specs specifiers
                             :quals [(restrict)]
                     :name (func)
@@ -473,7 +465,6 @@ transl-unit
                     :indtype pointer
                         :indtype function
                             :params []
-                        :specs specifiers
                     :name (func)
             ]
         declaration
@@ -499,7 +490,6 @@ transl-unit
                         :indtype pointer
                             :indtype function
                                 :params []
-                            :specs specifiers
                         :specs specifiers
                             :quals [(restrict)]
                     :name (func)
@@ -561,7 +551,6 @@ transl-unit
                 :indtype pointer
                     :indtype function
                         :params []
-                    :specs specifiers
                 :name (bar)
             :body block
                 :entities []
@@ -574,7 +563,6 @@ transl-unit
                 :indtype pointer
                     :indtype function
                         :params []
-                    :specs specifiers
                 :name (bar)
             :body block
                 :entities []
@@ -846,7 +834,6 @@ block
                     :dirtype id-type
                         :names [(custom_t)]
                 :decl pointer
-                    :specs specifiers
         unary
             :op (sizeof)
             :expr type-name
@@ -1709,7 +1696,6 @@ transl-unit
                             :decls [
                                 declarator
                                     :indtype pointer
-                                        :specs specifiers
                                     :name (j)
                             ]
                     ]
@@ -1777,7 +1763,6 @@ transl-unit
                                     :name (b)
                             ]
                         declaration
-                            :specs specifiers
                             :decls [
                                 declarator
                                     :bitsize constant
@@ -1895,7 +1880,6 @@ transl-unit
             :decls [
                 declarator
                     :indtype pointer
-                        :specs specifiers
                     :name (p)
             ]
         declaration
@@ -1924,7 +1908,6 @@ transl-unit
                                     :storage (static)
                                 :dim constant
                                     :value (10)
-                            :specs specifiers
                         :specs specifiers
                             :quals [(volatile)(restrict)(const)]
                     :name (p)
@@ -1936,7 +1919,6 @@ transl-unit
             :decls [
                 declarator
                     :indtype pointer
-                        :specs specifiers
                     :name (i)
                 declarator
                     :indtype pointer
@@ -1946,7 +1928,6 @@ transl-unit
                                     :indtype pointer
                                         :specs specifiers
                                             :quals [(volatile)]
-                                    :dim_specs specifiers
                                     :dim special
                                         :value (*)
                                 :specs specifiers
@@ -1966,14 +1947,12 @@ transl-unit
                         :indtype pointer
                             :indtype function
                                 :indtype pointer
-                                    :specs specifiers
                                 :params [
                                     parameter
                                         :specs specifiers
                                             :dirtype id-type
                                                 :names [(double)]
                                 ]
-                            :specs specifiers
                         :params [
                             parameter
                                 :specs specifiers
@@ -2025,7 +2004,6 @@ transl-unit
                                         :names [(int)]
                                 :decl declarator
                                     :indtype pointer
-                                        :specs specifiers
                         ]
                     :name (f)
             ]
@@ -2130,8 +2108,6 @@ transl-unit
                                 :decl declarator
                                     :indtype pointer
                                         :indtype array
-                                            :dim_specs specifiers
-                                        :specs specifiers
                         ]
                     :name (f)
             ]
@@ -2149,7 +2125,6 @@ transl-unit
                                         :names [(int)]
                                 :decl declarator
                                     :indtype array
-                                        :dim_specs specifiers
                         ]
                     :name (f)
             ]
