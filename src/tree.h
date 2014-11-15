@@ -28,7 +28,7 @@ enum type_e {
     ENUMERATOR,         // {#name, value*}
 
     // Indirect types.
-    POINTER,            // {specs, indtype*}
+    POINTER,            // {indtype*, specs}
     ARRAY,              // {indtype*, dim_specs*, dim*}
     FUNCTION,           // {indtype*, params[]}
 
@@ -182,8 +182,8 @@ struct enumerator_s {
 
 struct pointer_s {
     TREE_FIELDS
-    tree_t specs;
     tree_t indtype;
+    tree_t specs;
 };
 
 

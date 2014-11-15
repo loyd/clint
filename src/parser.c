@@ -9,7 +9,7 @@
 #include "tokens.h"
 
 
-#define TOKENS_INIT_SIZE 50
+#define TOKENS_INIT_SIZE 512
 #define TOKENS_SIZE_FACTOR 3
 
 
@@ -253,11 +253,11 @@ static tree_t finish_enumerator(token_t *name, tree_t value)
 }
 
 
-static tree_t finish_pointer(tree_t specs, tree_t indtype)
+static tree_t finish_pointer(tree_t indtype, tree_t specs)
 {
     assert(specs);
     struct pointer_s *res = xmalloc(sizeof(*res));
-    *res = (struct pointer_s){T(POINTER), specs, indtype};
+    *res = (struct pointer_s){T(POINTER), indtype, specs};
     return finish(res);
 }
 
@@ -525,11 +525,18 @@ static tree_t finish_comp_member(list_t designs, tree_t init)
 
 
 /*!
- * In problem "X * Y" we prefer declaration to statement.
- * In problem "X(Y)" we prefer statement to declaration.
- * In problem "X Y" we prefer declaration to statement (w/ macros).
+ * In problem "X(Y)" we prefer expression to declaration.
+ * In problem "X Y" we prefer declaration to expression (w/ macros).
+ *
+ * In normal mode:
+ *     "X * Y"      expression
+ *     "X)" "X,"    expression
+ *
+ * In agressive mode:
+ *     "X * Y"      declaration
+ *     "X)" "X,"    declaration
  */
-static bool starts_declaration(void)
+static bool starts_declaration(bool agressive)
 {
     switch (peek(1))
     {
@@ -537,8 +544,16 @@ static bool starts_declaration(void)
         case TOK_IDENTIFIER:
             switch (peek(2))
             {
+                case PN_RPAREN:
+                case PN_COMMA:
+                    return agressive;
+
                 case PN_STAR:
-                    return peek(3) == TOK_IDENTIFIER;
+                    // "X *)" is are always declaration.
+                    if (peek(3) == PN_RPAREN)
+                        return true;
+
+                    return agressive;// && peek(3) == TOK_IDENTIFIER;
 
                 case TOK_IDENTIFIER: case KW_TYPEDEF:
                 case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:
@@ -568,7 +583,7 @@ static bool starts_declaration(void)
 }
 
 
-static tree_t cast_expression(void);
+static tree_t cast_expression(bool after_sizeof);
 static tree_t postfix_expression_suffixes(tree_t left);
 static tree_t binary_expression(void);
 static tree_t conditional_expression(void);
@@ -578,7 +593,7 @@ static tree_t constant_expression(void);
 
 static tree_t declaration(void);
 static tree_t declaration_inner(tree_t specs, tree_t first_declarator);
-static tree_t declaration_specifiers(void);
+static tree_t declaration_specifiers(bool agressive);
 static tree_t struct_or_union_specifier(void);
 static tree_t enum_specifier(void);
 static tree_t init_declarator(void);
@@ -631,44 +646,45 @@ static tree_t translation_unit(void);
  *     unary-expression
  *     "(" type-name ")" cast-expression
  */
-static tree_t cast_expression(void)
+static tree_t cast_expression(bool after_sizeof)
 {
-    //#TODO: support for sizeof.
-
     tree_t left;
 
     switch (peek(1))
     {
         // Compound literal: (<type-name>) {<init-list>}
-        // Cast expression:  (<type-name>) <cast-expr>
+        // Cast expression:  (<type-name>) <cast-expr>          [!after_sizeof]
+        // After sizeof: (<type-name>)                          [after_sizeof]
         // Postfix expression: (<expr>) <postfix-expr-suffix>
         // Primary expression: (<expr>)
         case PN_LPAREN:
             consume();
 
             // Choice between type name and expression.
-            if (starts_declaration())
+            if (starts_declaration(false))
                 left = type_name();
             else if (next_is(TOK_IDENTIFIER) && peek(2) == PN_RPAREN)
             {
                 // Some heuristics.
                 switch (peek(3))
                 {
-                    case PN_LSQUARE:
-                    case PN_PERIOD:
+                    case PN_SEMI:
+                    case PN_COMMA:
+                    case PN_RPAREN:
+                        left = after_sizeof ? type_name() : expression();
+                        break;
+
                     case PN_ARROW:
+                    case PN_PERIOD:
+                    case PN_LSQUARE:
                         left = expression();
                         break;
 
                     case PN_PLUSPLUS:
                     case PN_MINUSMINUS:
-                        if (peek(4) != TOK_IDENTIFIER)
-                        {
-                            left = expression();
-                            break;
-                        }
-
-                        // Fallthrough.
+                        left = peek(4) == TOK_IDENTIFIER ? type_name()
+                                                         : expression();
+                        break;
 
                     default:
                         left = type_name();
@@ -682,8 +698,10 @@ static tree_t cast_expression(void)
             if (left->type == TYPE_NAME)
                 if (next_is(PN_LBRACE))
                     left = compound_literal(left);
+                else if (after_sizeof)
+                    return left;
                 else
-                    return finish_cast(left, cast_expression());
+                    return finish_cast(left, cast_expression(false));
 
             break;
 
@@ -709,13 +727,15 @@ static tree_t cast_expression(void)
         case PN_EXCLAIM:
         {
             token_t *op = consume();
-            return finish_unary(op, cast_expression());
+            return finish_unary(op, cast_expression(false));
         }
 
+        // `sizeof` operator.
         case KW_SIZEOF:
-            consume();
-
-            assert(0 && "Not implemented");
+        {
+            token_t *op = consume();
+            return finish_unary(op, cast_expression(true));
+        }
     }
 
     return postfix_expression_suffixes(left);
@@ -795,7 +815,7 @@ static tree_t postfix_expression_suffixes(tree_t left)
  */
 static tree_t binary_expression(void)
 {
-    tree_t left = cast_expression();
+    tree_t left = cast_expression(false);
     token_t *op;
 
     for (;;) switch (peek(1))
@@ -815,7 +835,7 @@ static tree_t binary_expression(void)
         // Logical.
         case PN_AMPAMP: case PN_PIPEPIPE:
             op = consume();
-            left = finish_binary(left, op, cast_expression());
+            left = finish_binary(left, op, cast_expression(false));
             break;
 
         default:
@@ -928,7 +948,7 @@ static inline tree_t constant_expression(void)
  */
 static tree_t declaration(void)
 {
-    tree_t specs = declaration_specifiers();
+    tree_t specs = declaration_specifiers(false);
 
     if (accept(PN_SEMI))
         return finish_declaration(specs, NULL);
@@ -975,7 +995,7 @@ static tree_t declaration_inner(tree_t specs, tree_t first_declarator)
  *
  * We accept empty declaration specifiers.
  */
-static tree_t declaration_specifiers(void)
+static tree_t declaration_specifiers(bool agressive)
 {
     token_t *storage = NULL;
     token_t *fnspec = NULL;
@@ -1032,7 +1052,7 @@ static tree_t declaration_specifiers(void)
 
         // Perhaps custom type.
         case TOK_IDENTIFIER:
-            if (!(dirtype || names) && starts_declaration())
+            if (!(dirtype || names) && starts_declaration(agressive))
             {
                 names = new_list();
                 add_to_list(names, consume());
@@ -1191,13 +1211,12 @@ static tree_t init_declarator(void)
  */
 static tree_t declarator_inner(token_t **name)
 {
-    //#TODO: how about a tightening of requirements?
     tree_t specs;
 
     if (!accept(PN_STAR))
         return direct_declarator_inner(name);
 
-    specs = declaration_specifiers();
+    specs = declaration_specifiers(false);
 
     switch (peek(1))
     {
@@ -1207,7 +1226,7 @@ static tree_t declarator_inner(token_t **name)
         case TOK_IDENTIFIER:
         case PN_LSQUARE:
         case PN_LPAREN:
-            return finish_pointer(specs, declarator_inner(name));
+            return finish_pointer(declarator_inner(name), specs);
     }
 
     // Unexpected abstract declarator.
@@ -1215,7 +1234,7 @@ static tree_t declarator_inner(token_t **name)
         *name = NULL;
 
     // Only pointer within abstract declarator.
-    return finish_pointer(specs, NULL);
+    return finish_pointer(NULL, specs);
 }
 
 
@@ -1244,8 +1263,7 @@ static tree_t declarator_inner(token_t **name)
  *     declaration-specifiers [abstract-declarator]
  *
  * C99 6.7.5 identifier-list:
- *     identifier
- *     identifier-list "," identifier
+ *     [identifier-list ","] identifier
  *
  * C99 6.7.5 direct-abstract-declarator:
  *     "(" abstract-declarator ")"
@@ -1266,18 +1284,18 @@ static tree_t direct_declarator_inner(token_t **name)
         // Array declarator.
         case PN_LSQUARE:
         {
-            tree_t specs;
+            tree_t dim_specs;
             tree_t dimension = NULL;
 
             consume();
-            specs = declaration_specifiers();
+            dim_specs = declaration_specifiers(false);
 
             if (next_is(PN_STAR))
                 dimension = finish_special(consume());
             else if (!next_is(PN_RSQUARE))
                 dimension = assignment_expression();
 
-            indtype = finish_array(indtype, specs, dimension);
+            indtype = finish_array(indtype, dim_specs, dimension);
             expect(PN_RSQUARE);
             break;
         }
@@ -1290,7 +1308,7 @@ static tree_t direct_declarator_inner(token_t **name)
 
             if (name)
                 is_group = !ident;
-            else if (next_is(PN_RPAREN) || starts_declaration())
+            else if (next_is(PN_RPAREN) || starts_declaration(true))
                 is_group = false;
             else
                 is_group = true;
@@ -1310,7 +1328,7 @@ static tree_t direct_declarator_inner(token_t **name)
                     add_to_list(params, finish_special(consume()));
                 else
                 {
-                    tree_t specs = declaration_specifiers();
+                    tree_t specs = declaration_specifiers(true);
                     tree_t declarator = NULL;
 
                     if (!(next_is(PN_COMMA) || next_is(PN_RPAREN)))
@@ -1405,7 +1423,7 @@ static tree_t initializer(void)
  */
 static tree_t type_name(void)
 {
-    tree_t specs = declaration_specifiers();
+    tree_t specs = declaration_specifiers(true);
     tree_t decl = declarator_inner(NULL);
 
     return finish_type_name(specs, decl);
@@ -1424,17 +1442,21 @@ static tree_t type_name(void)
  */
 static tree_t declaration_or_fn_definition(void)
 {
-    tree_t specs = declaration_specifiers();
+    tree_t specs = declaration_specifiers(true);
     struct declarator_s *declarator;
+    bool is_function = false;
 
     if (accept(PN_SEMI))
         return finish_declaration(specs, NULL);
 
     declarator = (struct declarator_s *)init_declarator();
 
+    // Check last indirect type.
+    for (tree_t i = (tree_t)declarator; i; i = ((struct pointer_s *)i)->indtype)
+        is_function = i->type == FUNCTION;
+
     // Function definition.
-    if (!declarator->init && !next_is(PN_SEMI) &&
-        declarator->indtype && declarator->indtype->type == FUNCTION)
+    if (is_function && !declarator->init && !next_is(PN_SEMI))
     {
         list_t old_decls = NULL;
         tree_t body;
@@ -1560,8 +1582,8 @@ static tree_t compound_statement(void)
     expect(PN_LBRACE);
 
     while (!accept(PN_RBRACE))
-        add_to_list(entities, starts_declaration() ? declaration()
-                                                   : statement());
+        add_to_list(entities, starts_declaration(true) ? declaration()
+                                                       : statement());
 
     return finish_block(entities);
 }
@@ -1655,7 +1677,7 @@ static tree_t iteration_statement(void)
 
             if (next_is(PN_SEMI))
                 consume();
-            else if (starts_declaration())
+            else if (starts_declaration(true))
                 init = declaration();
             else
             {

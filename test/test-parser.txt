@@ -1,60 +1,3 @@
-[external definitions]
-
-translation unit
-================
-    int i;
-    int j;
-~~~~~~~~~~~~~~~~
-transl-unit
-    :entities [
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(int)]
-            :decls [
-                declarator
-                    :name (i)
-            ]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(int)]
-            :decls [
-                declarator
-                    :name (j)
-            ]
-    ]
-~~~~~~~~~~~~~~~~
-
-external declaration
-====================
-    int i;
-    void f() {}
-~~~~~~~~~~~~~~~~~~~~
-transl-unit
-    :entities [
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(int)]
-            :decls [
-                declarator
-                    :name (i)
-            ]
-        function-def
-            :specs specifiers
-                :dirtype id-type
-                    :names [(void)]
-            :decl declarator
-                :indtype function
-                    :params []
-                :name (f)
-            :body block
-                :entities []
-    ]
-~~~~~~~~~~~~~~~~~~~~
-
-
 [function definitions]
 
 w/o parameters
@@ -76,12 +19,168 @@ transl-unit
     ]
 ~~~~~~~~~~~~~~
 
+parameter type list
+===================
+    void f(int i) {}
+    void f(int i, ...) {}
+    void f(s_t i) {}
+    void f(s_t i, ...) {}
+~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(int)]
+                            :decl declarator
+                                :name (i)
+                    ]
+                :name (f)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(int)]
+                            :decl declarator
+                                :name (i)
+                        special
+                            :value (...)
+                    ]
+                :name (f)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(s_t)]
+                            :decl declarator
+                                :name (i)
+                    ]
+                :name (f)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(s_t)]
+                            :decl declarator
+                                :name (i)
+                        special
+                            :value (...)
+                    ]
+                :name (f)
+            :body block
+                :entities []
+    ]
+~~~~~~~~~~~~~~~~~~~
+
 parameters w/o names
 ====================
+    int main(int) {}
+    int main(int *restrict) {}
+    int main(custom_t ) {}
+    int main(custom_t *const) {}
     int main(int, char **) {}
 ~~~~~~~~~~~~~~~~~~~~
 transl-unit
     :entities [
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(int)]
+                    ]
+                :name (main)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(int)]
+                            :decl declarator
+                                :indtype pointer
+                                    :specs specifiers
+                                        :quals [(restrict)]
+                    ]
+                :name (main)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(custom_t)]
+                    ]
+                :name (main)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(custom_t)]
+                            :decl declarator
+                                :indtype pointer
+                                    :specs specifiers
+                                        :quals [(const)]
+                    ]
+                :name (main)
+            :body block
+                :entities []
         function-def
             :specs specifiers
                 :dirtype id-type
@@ -99,15 +198,129 @@ transl-unit
                                     :names [(char)]
                             :decl declarator
                                 :indtype pointer
-                                    :specs specifiers
                                     :indtype pointer
                                         :specs specifiers
+                                    :specs specifiers
                     ]
                 :name (main)
             :body block
                 :entities []
     ]
 ~~~~~~~~~~~~~~~~~~~~
+
+parameters w/ names
+===================
+    int main(int arg) {}
+    int main(int *restrict arg) {}
+    int main(custom_t arg) {}
+    int main(custom_t *const arg) {}
+    int main(int a, char **b) {}
+~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(int)]
+                            :decl declarator
+                                :name (arg)
+                    ]
+                :name (main)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(int)]
+                            :decl declarator
+                                :indtype pointer
+                                    :specs specifiers
+                                        :quals [(restrict)]
+                                :name (arg)
+                    ]
+                :name (main)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(custom_t)]
+                            :decl declarator
+                                :name (arg)
+                    ]
+                :name (main)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(custom_t)]
+                            :decl declarator
+                                :indtype pointer
+                                    :specs specifiers
+                                        :quals [(const)]
+                                :name (arg)
+                    ]
+                :name (main)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decl declarator
+                :indtype function
+                    :params [
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(int)]
+                            :decl declarator
+                                :name (a)
+                        parameter
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(char)]
+                            :decl declarator
+                                :indtype pointer
+                                    :indtype pointer
+                                        :specs specifiers
+                                    :specs specifiers
+                                :name (b)
+                    ]
+                :name (main)
+            :body block
+                :entities []
+    ]
+~~~~~~~~~~~~~~~~~~~
 
 declaration list
 ================
@@ -124,12 +337,12 @@ transl-unit
                     :params [
                         parameter
                             :specs specifiers
-                            :decl declarator
-                                :name (argc)
+                                :dirtype id-type
+                                    :names [(argc)]
                         parameter
                             :specs specifiers
-                            :decl declarator
-                                :name (argv)
+                                :dirtype id-type
+                                    :names [(argv)]
                     ]
                 :name (main)
             :old_decls [
@@ -140,9 +353,9 @@ transl-unit
                     :decls [
                         declarator
                             :indtype pointer
-                                :specs specifiers
                                 :indtype pointer
                                     :specs specifiers
+                                :specs specifiers
                             :name (argv)
                     ]
                 declaration
@@ -163,6 +376,211 @@ transl-unit
     ]
 ~~~~~~~~~~~~~~~~
 
+simple type of result
+=====================
+    long long int *func();
+    long long int *restrict func();
+    long long int *restrict *func();
+    long long int *restrict *const func();
+~~~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(long)(long)(int)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :indtype function
+                            :params []
+                        :specs specifiers
+                    :name (func)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(long)(long)(int)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :indtype function
+                            :params []
+                        :specs specifiers
+                            :quals [(restrict)]
+                    :name (func)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(long)(long)(int)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :indtype pointer
+                            :indtype function
+                                :params []
+                            :specs specifiers
+                        :specs specifiers
+                            :quals [(restrict)]
+                    :name (func)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(long)(long)(int)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :indtype pointer
+                            :indtype function
+                                :params []
+                            :specs specifiers
+                                :quals [(const)]
+                        :specs specifiers
+                            :quals [(restrict)]
+                    :name (func)
+            ]
+    ]
+~~~~~~~~~~~~~~~~~~~~~
+
+custom type of result
+=====================
+    custom_t func();
+    custom_t *func();
+    custom_t *restrict func();
+    custom_t *restrict *func();
+    custom_t *restrict *const func();
+~~~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :indtype function
+                        :params []
+                    :name (func)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :indtype function
+                            :params []
+                        :specs specifiers
+                    :name (func)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :indtype function
+                            :params []
+                        :specs specifiers
+                            :quals [(restrict)]
+                    :name (func)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :indtype pointer
+                            :indtype function
+                                :params []
+                            :specs specifiers
+                        :specs specifiers
+                            :quals [(restrict)]
+                    :name (func)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :indtype pointer
+                            :indtype function
+                                :params []
+                            :specs specifiers
+                                :quals [(const)]
+                        :specs specifiers
+                            :quals [(restrict)]
+                    :name (func)
+            ]
+    ]
+~~~~~~~~~~~~~~~~~~~~~
+
+complex type of result
+======================
+    struct {} foo() {}
+    struct foo {} bar() {}
+    struct {} *bar() {}
+    struct foo {} *bar() {}
+~~~~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        function-def
+            :specs specifiers
+                :dirtype struct
+                    :members []
+            :decl declarator
+                :indtype function
+                    :params []
+                :name (foo)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype struct
+                    :name (foo)
+                    :members []
+            :decl declarator
+                :indtype function
+                    :params []
+                :name (bar)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype struct
+                    :members []
+            :decl declarator
+                :indtype pointer
+                    :indtype function
+                        :params []
+                    :specs specifiers
+                :name (bar)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype struct
+                    :name (foo)
+                    :members []
+            :decl declarator
+                :indtype pointer
+                    :indtype function
+                        :params []
+                    :specs specifiers
+                :name (bar)
+            :body block
+                :entities []
+    ]
+~~~~~~~~~~~~~~~~~~~~~~
+
 
 [expressions]
 
@@ -174,6 +592,8 @@ primary expression*
     "A";
     'a';
     (1);
+    (x);
+    ((x));
 }
 ~~~~~~~~~~~~~~~~~~
 block
@@ -188,17 +608,17 @@ block
             :value ('a')
         constant
             :value (1)
+        identifier
+            :value (x)
+        identifier
+            :value (x)
     ]
 ~~~~~~~~~~~~~~~~~~
 
 postfix expression*
 ==================
 {
-    x;
     x[1];
-    x(1);
-    x(1, 2);
-    x();
     x.a;
     x->a;
     x++;
@@ -209,33 +629,11 @@ postfix expression*
 ~~~~~~~~~~~~~~~~~~
 block
     :entities [
-        identifier
-            :value (x)
         subscript
             :left identifier
                 :value (x)
             :index constant
                 :value (1)
-        call
-            :left identifier
-                :value (x)
-            :args [
-                constant
-                    :value (1)
-            ]
-        call
-            :left identifier
-                :value (x)
-            :args [
-                constant
-                    :value (1)
-                constant
-                    :value (2)
-            ]
-        call
-            :left identifier
-                :value (x)
-            :args []
         accessor
             :left identifier
                 :value (x)
@@ -277,14 +675,92 @@ block
     ]
 ~~~~~~~~~~~~~~~~~~
 
+call expression*
+===============
+{
+    x();
+    x(1);
+    x(1, 2);
+    x(*a);
+    x(*a(*b));
+    x(*a)(*b);
+}
+~~~~~~~~~~~~~~~
+block
+    :entities [
+        call
+            :left identifier
+                :value (x)
+            :args []
+        call
+            :left identifier
+                :value (x)
+            :args [
+                constant
+                    :value (1)
+            ]
+        call
+            :left identifier
+                :value (x)
+            :args [
+                constant
+                    :value (1)
+                constant
+                    :value (2)
+            ]
+        call
+            :left identifier
+                :value (x)
+            :args [
+                unary
+                    :op (*)
+                    :expr identifier
+                        :value (a)
+            ]
+        call
+            :left identifier
+                :value (x)
+            :args [
+                unary
+                    :op (*)
+                    :expr call
+                        :left identifier
+                            :value (a)
+                        :args [
+                            unary
+                                :op (*)
+                                :expr identifier
+                                    :value (b)
+                        ]
+            ]
+        call
+            :left call
+                :left identifier
+                    :value (x)
+                :args [
+                    unary
+                        :op (*)
+                        :expr identifier
+                            :value (a)
+                ]
+            :args [
+                unary
+                    :op (*)
+                    :expr identifier
+                        :value (b)
+            ]
+    ]
+~~~~~~~~~~~~~~~
+
 unary expression*
 ================
 {
     x;
-    ++x; --x;
+    ++(x); --x;
     &x; *x;
-    +x; -x;
+    +x; -((((x))));
     ~x; !x;
+    -(-5);
 }
 ~~~~~~~~~~~~~~~~
 block
@@ -323,14 +799,74 @@ block
             :op (!)
             :expr identifier
                 :value (x)
+        unary
+            :op (-)
+            :expr unary
+                :op (-)
+                :expr constant
+                    :value (5)
     ]
 ~~~~~~~~~~~~~~~~
+
+sizeof expression*
+=================
+{
+    sizeof *ptr;
+    sizeof(*ptr);
+    sizeof(struct some_s);
+    sizeof(custom_t *);
+    sizeof(custom_t);
+    sizeof (var)++;
+}
+~~~~~~~~~~~~~~~~~
+block
+    :entities [
+        unary
+            :op (sizeof)
+            :expr unary
+                :op (*)
+                :expr identifier
+                    :value (ptr)
+        unary
+            :op (sizeof)
+            :expr unary
+                :op (*)
+                :expr identifier
+                    :value (ptr)
+        unary
+            :op (sizeof)
+            :expr type-name
+                :specs specifiers
+                    :dirtype struct
+                        :name (some_s)
+        unary
+            :op (sizeof)
+            :expr type-name
+                :specs specifiers
+                    :dirtype id-type
+                        :names [(custom_t)]
+                :decl pointer
+                    :specs specifiers
+        unary
+            :op (sizeof)
+            :expr type-name
+                :specs specifiers
+                    :dirtype id-type
+                        :names [(custom_t)]
+        unary
+            :op (sizeof)
+            :expr unary
+                :op (++)
+                :expr identifier
+                    :value (var)
+    ]
+~~~~~~~~~~~~~~~~~
 
 binary expression*
 =================
 {
     x + x; x << x; x <= x; x == x; x ^ x; x || x;
-    (x + 2) * (z * 2) + (y || p);
+    (x + 2) * (z * p) + (y || p);
 }
 ~~~~~~~~~~~~~~~~~
 block
@@ -384,8 +920,8 @@ block
                     :left identifier
                         :value (z)
                     :op (*)
-                    :right constant
-                        :value (2)
+                    :right identifier
+                        :value (p)
             :op (+)
             :right binary
                 :left identifier
@@ -583,16 +1119,8 @@ block
     ]
 ~~~~~~~~~~~~~~~~~~
 
-expression statement*
-====================
-    1;
-~~~~~~~~~~~~~~~~~~~~
-constant
-    :value (1)
-~~~~~~~~~~~~~~~~~~~~
-
 if statement*
-===================
+============
 {
     if (1) ;
     if (1) ; else ;
@@ -600,7 +1128,7 @@ if statement*
     if (1) if (2) ; else ;
     if (1) if (2) ; else ; else ;
 }
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 block
     :entities [
         if
@@ -639,7 +1167,7 @@ block
                 :else_br empty
             :else_br empty
     ]
-~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 
 switch statement*
 ================
@@ -972,7 +1500,7 @@ block
 
 [declarations]
 
-declaration_specifiers
+declaration specifiers
 ======================
     typedef int x;
     int typedef y;
@@ -1106,21 +1634,10 @@ transl-unit
 type specifier
 ==============
     void;
-    char;
     char signed;
-    unsigned char;
-    short;
-    int short;
-    int short signed;
-    unsigned int short;
-    long;
-    int long signed;
     unsigned long long int;
-    float;
-    double;
     double long;
     _Bool;
-    _Complex float;
     double _Complex;
     struct s;
     enum e;
@@ -1134,51 +1651,11 @@ transl-unit
         declaration
             :specs specifiers
                 :dirtype id-type
-                    :names [(char)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
                     :names [(char)(signed)]
         declaration
             :specs specifiers
                 :dirtype id-type
-                    :names [(unsigned)(char)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(short)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(int)(short)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(int)(short)(signed)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(unsigned)(int)(short)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(long)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(int)(long)(signed)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
                     :names [(unsigned)(long)(long)(int)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(float)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(double)]
         declaration
             :specs specifiers
                 :dirtype id-type
@@ -1187,10 +1664,6 @@ transl-unit
             :specs specifiers
                 :dirtype id-type
                     :names [(_Bool)]
-        declaration
-            :specs specifiers
-                :dirtype id-type
-                    :names [(_Complex)(float)]
         declaration
             :specs specifiers
                 :dirtype id-type
@@ -1309,9 +1782,9 @@ transl-unit
 
 type qualifier
 ==============
-    const int;
-    restrict int;
-    volatile int;
+    const custom_t a;
+    restrict custom_t a;
+    volatile custom_t a;
 ~~~~~~~~~~~~~~
 transl-unit
     :entities [
@@ -1319,17 +1792,29 @@ transl-unit
             :specs specifiers
                 :quals [(const)]
                 :dirtype id-type
-                    :names [(int)]
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :name (a)
+            ]
         declaration
             :specs specifiers
                 :quals [(restrict)]
                 :dirtype id-type
-                    :names [(int)]
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :name (a)
+            ]
         declaration
             :specs specifiers
                 :quals [(volatile)]
                 :dirtype id-type
-                    :names [(int)]
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :name (a)
+            ]
     ]
 ~~~~~~~~~~~~~~
 
@@ -1355,17 +1840,18 @@ transl-unit
 
 declarator
 ==========
-    int *p;
-    int *const restrict volatile p;
-    int i, *volatile restrict const *p[static 10];
-    int *i, *const (*restrict (*volatile p)[])();
+    custom_t *p;
+    custom_t *const restrict volatile p;
+    custom_t i, *volatile restrict const *p[static 10];
+    custom_t *i, *const (*restrict (*volatile p)[*])();
+    int (*(*f2)(double))(float);
 ~~~~~~~~~~
 transl-unit
     :entities [
         declaration
             :specs specifiers
                 :dirtype id-type
-                    :names [(int)]
+                    :names [(custom_t)]
             :decls [
                 declarator
                     :indtype pointer
@@ -1375,7 +1861,7 @@ transl-unit
         declaration
             :specs specifiers
                 :dirtype id-type
-                    :names [(int)]
+                    :names [(custom_t)]
             :decls [
                 declarator
                     :indtype pointer
@@ -1386,21 +1872,48 @@ transl-unit
         declaration
             :specs specifiers
                 :dirtype id-type
-                    :names [(int)]
+                    :names [(custom_t)]
             :decls [
                 declarator
                     :name (i)
                 declarator
                     :indtype pointer
-                        :specs specifiers
-                            :quals [(volatile)(restrict)(const)]
                         :indtype pointer
-                            :specs specifiers
                             :indtype array
                                 :dim_specs specifiers
                                     :storage (static)
                                 :dim constant
                                     :value (10)
+                            :specs specifiers
+                        :specs specifiers
+                            :quals [(volatile)(restrict)(const)]
+                    :name (p)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :specs specifiers
+                    :name (i)
+                declarator
+                    :indtype pointer
+                        :indtype function
+                            :indtype pointer
+                                :indtype array
+                                    :indtype pointer
+                                        :specs specifiers
+                                            :quals [(volatile)]
+                                    :dim_specs specifiers
+                                    :dim special
+                                        :value (*)
+                                :specs specifiers
+                                    :quals [(restrict)]
+                            :params []
+                        :specs specifiers
+                            :quals [(const)]
                     :name (p)
             ]
         declaration
@@ -1409,111 +1922,28 @@ transl-unit
                     :names [(int)]
             :decls [
                 declarator
-                    :indtype pointer
-                        :specs specifiers
-                    :name (i)
-                declarator
-                    :indtype pointer
-                        :specs specifiers
-                            :quals [(const)]
-                        :indtype function
-                            :indtype pointer
-                                :specs specifiers
-                                    :quals [(restrict)]
-                                :indtype array
-                                    :indtype pointer
+                    :indtype function
+                        :indtype pointer
+                            :indtype function
+                                :indtype pointer
+                                    :specs specifiers
+                                :params [
+                                    parameter
                                         :specs specifiers
-                                            :quals [(volatile)]
-                                    :dim_specs specifiers
-                            :params []
-                    :name (p)
+                                            :dirtype id-type
+                                                :names [(double)]
+                                ]
+                            :specs specifiers
+                        :params [
+                            parameter
+                                :specs specifiers
+                                    :dirtype id-type
+                                        :names [(float)]
+                        ]
+                    :name (f2)
             ]
     ]
 ~~~~~~~~~~
-
-parameter type list
-===================
-    void f(int i) {}
-    void f(int i, ...) {}
-    void f(s_t i) {}
-    void f(s_t i, ...) {}
-~~~~~~~~~~~~~~~~~~~
-transl-unit
-    :entities [
-        function-def
-            :specs specifiers
-                :dirtype id-type
-                    :names [(void)]
-            :decl declarator
-                :indtype function
-                    :params [
-                        parameter
-                            :specs specifiers
-                                :dirtype id-type
-                                    :names [(int)]
-                            :decl declarator
-                                :name (i)
-                    ]
-                :name (f)
-            :body block
-                :entities []
-        function-def
-            :specs specifiers
-                :dirtype id-type
-                    :names [(void)]
-            :decl declarator
-                :indtype function
-                    :params [
-                        parameter
-                            :specs specifiers
-                                :dirtype id-type
-                                    :names [(int)]
-                            :decl declarator
-                                :name (i)
-                        special
-                            :value (...)
-                    ]
-                :name (f)
-            :body block
-                :entities []
-        function-def
-            :specs specifiers
-                :dirtype id-type
-                    :names [(void)]
-            :decl declarator
-                :indtype function
-                    :params [
-                        parameter
-                            :specs specifiers
-                                :dirtype id-type
-                                    :names [(s_t)]
-                            :decl declarator
-                                :name (i)
-                    ]
-                :name (f)
-            :body block
-                :entities []
-        function-def
-            :specs specifiers
-                :dirtype id-type
-                    :names [(void)]
-            :decl declarator
-                :indtype function
-                    :params [
-                        parameter
-                            :specs specifiers
-                                :dirtype id-type
-                                    :names [(s_t)]
-                            :decl declarator
-                                :name (i)
-                        special
-                            :value (...)
-                    ]
-                :name (f)
-            :body block
-                :entities []
-    ]
-~~~~~~~~~~~~~~~~~~~
 
 parameter declaration
 =====================
@@ -1611,8 +2041,8 @@ transl-unit
                         :params [
                             parameter
                                 :specs specifiers
-                                :decl declarator
-                                    :name (i)
+                                    :dirtype id-type
+                                        :names [(i)]
                         ]
                     :name (f)
             ]
@@ -1626,12 +2056,12 @@ transl-unit
                         :params [
                             parameter
                                 :specs specifiers
-                                :decl declarator
-                                    :name (i)
+                                    :dirtype id-type
+                                        :names [(i)]
                             parameter
                                 :specs specifiers
-                                :decl declarator
-                                    :name (j)
+                                    :dirtype id-type
+                                        :names [(j)]
                         ]
                     :name (f)
             ]
@@ -1659,9 +2089,9 @@ transl-unit
                                         :names [(int)]
                                 :decl declarator
                                     :indtype pointer
-                                        :specs specifiers
                                         :indtype array
                                             :dim_specs specifiers
+                                        :specs specifiers
                         ]
                     :name (f)
             ]

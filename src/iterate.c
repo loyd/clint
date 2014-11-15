@@ -153,8 +153,8 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
         case POINTER:
         {
             struct pointer_s *tree = raw;
-            node(specs);
             node(indtype);
+            node(specs);
             break;
         }
         case ARRAY:
