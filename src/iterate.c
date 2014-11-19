@@ -408,7 +408,7 @@ static bool stringify_before_cb(const char *prop, enum item_e what, void *raw)
     {
         case TOKEN:
         {
-            token_t *tok = g_tokens[*(toknum_t *)raw];
+            token_t *tok = &g_tokens[*(toknum_t *)raw];
             int len = tok->end.pos - tok->start.pos;
             push("(%.*s)", len, g_data + tok->start.pos);
             break;

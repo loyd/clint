@@ -22,8 +22,8 @@ void init_parser(void)
     assert(!g_tokens);
 
     init_lexer();
-    g_tokens = new_vec(token_t *, 10);
-    vec_push(g_tokens, NULL);
+    g_tokens = new_vec(token_t, 512);
+    ++vec_len(g_tokens);  // 1-indexed.
     consumed = 0;
 }
 
@@ -32,18 +32,17 @@ static enum token_e peek(unsigned lookahead)
 {
     unsigned required = consumed + lookahead;
 
-    if (consumed && g_tokens[vec_len(g_tokens)-1]->kind == TOK_EOF)
+    if (consumed && g_tokens[vec_len(g_tokens)-1].kind == TOK_EOF)
         return TOK_EOF;
 
     while (vec_len(g_tokens) <= required)
     {
-        token_t *token = xmalloc(sizeof(token_t));
-        pull_token(token);
-
+        token_t token;
+        pull_token(&token);
         vec_push(g_tokens, token);
     }
 
-    return g_tokens[required]->kind;
+    return g_tokens[required].kind;
 }
 
 
