@@ -14,37 +14,39 @@
 #include "tree.h"
 
 
-static bool check(bool full, const char *input, const char *expected)
+static bool check(bool full, char *input, const char *expected)
 {
-    static file_t file;
     static char buffer[2048];
     char *actual;
 
     if (full)
-        file.data = input;
+        g_data = input;
     else
     {
         snprintf(buffer, sizeof(buffer), "void t() {%s}", input);
-        file.data = buffer;
+        g_data = buffer;
     }
 
-    parse(&file);
+    init_parser();
+    parse();
 
     if (full)
-        actual = stringify_tree(file.tree);
+        actual = stringify_tree();
     else
     {
-        struct transl_unit_s *tu = (void *)file.tree;
-        struct function_def_s *fn_def = tu->entities->first->data;
+        struct transl_unit_s *tu = (void *)g_tree;
+        struct function_def_s *fn_def = (void *)tu->entities[0];
         struct block_s *body = (void *)fn_def->body;
 
-        if (body->entities->first != body->entities->last)
+        if (vec_len(body->entities) > 1)
         {
             fprintf(stderr, "Actual has more than 1 entity.\n");
             return false;
         }
 
-        actual = stringify_tree(body->entities->first->data);
+        g_tree = body->entities[0];
+        actual = stringify_tree();
+        g_tree = (tree_t)tu;
     }
 
     if (strcmp(actual, expected))
@@ -55,8 +57,9 @@ static bool check(bool full, const char *input, const char *expected)
     }
 
     free(actual);
-    dispose_tree(file.tree);
 
+    g_data = NULL;
+    reset_state();
     return true;
 }
 

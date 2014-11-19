@@ -9,7 +9,7 @@ CFLAGS := -pedantic -Werror -Wall -Wextra -Wshadow -Wundef -Wunreachable-code \
 
 RM := rm
 
-COMMON := src/utils.o src/iterate.o src/lexer.o src/parser.o
+COMMON := src/state.o src/utils.o src/iterate.o src/lexer.o src/parser.o
 
 
 clint: $(COMMON) src/cli.c

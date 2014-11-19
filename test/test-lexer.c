@@ -17,12 +17,12 @@ typedef enum token_e T[];
 
 static bool _check(const char *input, enum token_e expected[], int len)
 {
-    static file_t file;
+    static char buffer[1024];
     static enum token_e actual[20];
     static token_t tok;
 
-    file.data = input;
-    init_lexer(&file);
+    g_data = strcpy(buffer, input);
+    init_lexer();
 
     int i = 0;
     pull_token(&tok);
@@ -54,6 +54,8 @@ static bool _check(const char *input, enum token_e expected[], int len)
         return false;
     }
 
+    g_data = NULL;
+    reset_state();
     return true;
 }
 

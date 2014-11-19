@@ -12,18 +12,12 @@
 #include "clint.h"
 
 
-/*! Initial length of `lines` array in `file_t` structure. */
-#define LINES_INIT_LEN 100
-
-
 /*!
  * @name The lexer state
  * The global state of the lexer. It's reset before process another file.
  */
 //!@{
-static file_t *fp;
-static const char *ch;
-static int max_lines;
+static char *ch;
 
 static bool parsing_header_name;
 static bool parsing_pp_directive;
@@ -31,22 +25,18 @@ static bool parsing_pp_directive;
 
 
 #define warn(...)                                                             \
-    warn_at(fp, fp->nlines, ch-fp->lines[fp->nlines]+1, __VA_ARGS__)
+    warn_at(vec_len(g_lines)-1, ch-g_lines[vec_len(g_lines)-1], __VA_ARGS__)
 
 
-void init_lexer(file_t *file)
+void init_lexer(void)
 {
-    assert(file);
-    assert(file->data);
+    assert(g_data);
+    assert(!g_lines);
 
-    fp = file;
-    ch = fp->data;
+    g_lines = new_vec(char *, 128);
+    vec_push(g_lines, g_data);
 
-    fp->nlines = 1;
-    max_lines = LINES_INIT_LEN;
-    fp->lines = xmalloc((max_lines+1) * sizeof(*fp->lines));
-    fp->lines[1] = fp->data;
-
+    ch = g_data;
     parsing_header_name = false;
     parsing_pp_directive = false;
 }
@@ -122,15 +112,7 @@ static inline enum token_e find_pp(const char *word, int len)
 static inline void newline(void)
 {
     assert(*ch == '\n');
-
-    if (fp->nlines == max_lines)
-    {
-        max_lines *= 2;
-        fp->lines = xrealloc(fp->lines, (max_lines+1) * sizeof(*fp->lines));
-    }
-
-    ++ch;
-    fp->lines[++fp->nlines] = ch;
+    vec_push(g_lines, ++ch);
 }
 
 
@@ -482,9 +464,9 @@ void pull_token(token_t *token)
     bool success;
     skip_spaces();
 
-    token->start.cursor = ch;
-    token->start.line = fp->nlines;
-    token->start.column = ch - fp->lines[fp->nlines] + 1;
+    token->start.pos = ch - g_data;
+    token->start.line = vec_len(g_lines) - 1;
+    token->start.column = ch - g_lines[vec_len(g_lines) - 1];
 
     switch (*ch)
     {
@@ -593,7 +575,7 @@ void pull_token(token_t *token)
     if (!success)
         token->kind = TOK_UNKNOWN;
 
-    token->end.cursor = ch;
-    token->end.line = fp->nlines;
-    token->end.column = ch - fp->lines[fp->nlines];
+    token->end.pos = ch - g_data;
+    token->end.line = vec_len(g_lines);
+    token->end.column = ch - g_lines[vec_len(g_lines)] - 1;
 }

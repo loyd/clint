@@ -136,11 +136,14 @@ typedef struct {
     enum token_e kind;
 
     struct {
-        const char *cursor;
-        int line;    //!< 1-indexed
-        int column;  //!< 1-indexed
+        int pos;
+        int line;
+        int column;
     } start, end;
 } token_t;
+
+
+typedef unsigned toknum_t;
 
 
 #endif  // __TOKENS_H__

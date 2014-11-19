@@ -11,8 +11,6 @@
 #include <string.h>
 
 #include "clint.h"
-#include "tokens.h"
-#include "tree.h"
 
 
 enum item_e {TOKEN, TOKENS, NODE, NODES};
@@ -41,14 +39,14 @@ static void iterate(const char *prop, enum item_e what, void *raw,
             break;
 
         case TOKENS:
-        case NODES:
-        {
-            enum item_e type = what == TOKENS ? TOKEN : NODE;
-
-            for (entry_t i = ((list_t)raw)->first; i; i = i->next)
-                iterate(NULL, type, i->data, before, after);
+            for (unsigned i = 0; i < vec_len(raw); ++i)
+                iterate(NULL, TOKEN, &((toknum_t *)raw)[i], before, after);
             break;
-        }
+
+        case NODES:
+            for (unsigned i = 0; i < vec_len(raw); ++i)
+                iterate(NULL, NODE, ((tree_t *)raw)[i], before, after);
+            break;
 
         default:
             assert(0);
@@ -62,14 +60,17 @@ static void iterate(const char *prop, enum item_e what, void *raw,
 static inline void iterate_node_inner(void *raw, before_t before, after_t after)
 {
 
-#define TYPE(prop, what)                                                      \
+#define token(prop)                                                           \
+    if (tree->prop)                                                           \
+        iterate(#prop, TOKEN, &tree->prop, before, after)
+
+#define ITERATE(prop, what)                                                   \
     if (tree->prop)                                                           \
         iterate(#prop, what, tree->prop, before, after)
 
-#define token(prop)     TYPE(prop, TOKEN)
-#define tokens(prop)    TYPE(prop, TOKENS)
-#define node(prop)      TYPE(prop, NODE)
-#define nodes(prop)     TYPE(prop, NODES)
+#define tokens(prop)    ITERATE(prop, TOKENS)
+#define node(prop)      ITERATE(prop, NODE)
+#define nodes(prop)     ITERATE(prop, NODES)
 
     switch (((tree_t)raw)->type)
     {
@@ -407,9 +408,9 @@ static bool stringify_before_cb(const char *prop, enum item_e what, void *raw)
     {
         case TOKEN:
         {
-            token_t *tok = raw;
-            int len = tok->end.cursor - tok->start.cursor;
-            push("(%.*s)", len, tok->start.cursor);
+            token_t *tok = g_tokens[*(toknum_t *)raw];
+            int len = tok->end.pos - tok->start.pos;
+            push("(%.*s)", len, g_data + tok->start.pos);
             break;
         }
 
@@ -431,7 +432,7 @@ static void stringify_after_cb(const char *prop, enum item_e what, void *raw)
 {
     --indent;
 
-    if (what == NODES && ((list_t)raw)->first)
+    if (what == NODES && vec_len(raw))
         push_indent();
 
     if (what == NODES || what == TOKENS)
@@ -439,8 +440,10 @@ static void stringify_after_cb(const char *prop, enum item_e what, void *raw)
 }
 
 
-char *stringify_tree(tree_t tree)
+char *stringify_tree(void)
 {
+    char *output;
+
     indent = 0;
 
     if (!str)
@@ -450,9 +453,9 @@ char *stringify_tree(tree_t tree)
         str_len = 0;
     }
 
-    iterate(NULL, NODE, tree, stringify_before_cb, stringify_after_cb);
+    iterate(NULL, NODE, g_tree, stringify_before_cb, stringify_after_cb);
 
-    char *output = str;
+    output = str;
     str = NULL;
 
     return output;
@@ -461,17 +464,10 @@ char *stringify_tree(tree_t tree)
 
 static void dispose_cb(const char *prop, enum item_e what, void *raw)
 {
-    // Dispose entries.
-    if (what == NODES || what == TOKENS)
-        for (entry_t next, curr = ((list_t)raw)->first; curr; curr = next)
-        {
-            next = curr->next;
-            free(curr);
-        }
-
-    // Not related to the tree directly.
-    if (what != TOKEN)
+    if (what == NODE)
         free(raw);
+    else if (what == NODES || what == TOKENS)
+        free_vec(raw);
 }
 
 
