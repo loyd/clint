@@ -14,7 +14,7 @@
 //#TODO: correct EOB handling.
 
 
-static toknum_t consumed;   //!< Number consumed tokens.
+static toknum_t current;
 
 
 void init_parser(void)
@@ -24,25 +24,25 @@ void init_parser(void)
     init_lexer();
     g_tokens = new_vec(token_t, 512);
     ++vec_len(g_tokens);  // 1-indexed.
-    consumed = 0;
+    current = 1;
 }
 
 
 static enum token_e peek(unsigned lookahead)
 {
-    unsigned required = consumed + lookahead;
+    unsigned required = current + lookahead;
 
-    if (consumed && g_tokens[vec_len(g_tokens)-1].kind == TOK_EOF)
+    if (current > 1 && g_tokens[vec_len(g_tokens)-1].kind == TOK_EOF)
         return TOK_EOF;
 
-    while (vec_len(g_tokens) <= required)
+    while (vec_len(g_tokens) < required)
     {
         token_t token;
         pull_token(&token);
         vec_push(g_tokens, token);
     }
 
-    return g_tokens[required].kind;
+    return g_tokens[required - 1].kind;
 }
 
 
@@ -55,7 +55,7 @@ static inline bool next_is(enum token_e kind)
 static toknum_t consume(void)
 {
     peek(1);
-    return ++consumed;
+    return current++;
 }
 
 
@@ -83,27 +83,39 @@ static toknum_t expect(enum token_e kind)
 ////////////
 
 #define T(type) type, 0, 0
-#define finish(res) (tree_t)res
+#define finish(st, tree) finish(st, (void *)tree)
 
 
-static tree_t finish_transl_unit(tree_t *entities)
+static tree_t (finish)(toknum_t st, tree_t raw)
+{
+    assert(st > 0);
+    assert(raw);
+
+    raw->start = st;
+    raw->end = current - 1;
+
+    return raw;
+}
+
+
+static tree_t finish_transl_unit(toknum_t st, tree_t *entities)
 {
     assert(entities);
     struct transl_unit_s *res = xmalloc(sizeof(*res));
     *res = (struct transl_unit_s){T(TRANSL_UNIT), entities};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_declaration(tree_t specs, tree_t *decls)
+static tree_t finish_declaration(toknum_t st, tree_t specs, tree_t *decls)
 {
     struct declaration_s *res = xmalloc(sizeof(*res));
     *res = (struct declaration_s){T(DECLARATION), specs, decls};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_specifiers(toknum_t storage, toknum_t fnspec,
+static tree_t finish_specifiers(toknum_t st, toknum_t storage, toknum_t fnspec,
                                 toknum_t *quals, tree_t dirtype)
 {
     struct specifiers_s *res = xmalloc(sizeof(*res));
@@ -111,20 +123,20 @@ static tree_t finish_specifiers(toknum_t storage, toknum_t fnspec,
         T(SPECIFIERS), storage, fnspec, quals, dirtype
     };
 
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_declarator(tree_t indtype, toknum_t name,
+static tree_t finish_declarator(toknum_t st, tree_t indtype, toknum_t name,
                                 tree_t init, tree_t bitsize)
 {
     struct declarator_s *res = xmalloc(sizeof(*res));
     *res = (struct declarator_s){T(DECLARATOR), indtype, name, init, bitsize};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_function_def(tree_t specs, tree_t decl,
+static tree_t finish_function_def(toknum_t st, tree_t specs, tree_t decl,
                                   tree_t *old_decls, tree_t body)
 {
     assert(decl && body);
@@ -133,335 +145,342 @@ static tree_t finish_function_def(tree_t specs, tree_t decl,
         T(FUNCTION_DEF), specs, decl, old_decls, body
     };
 
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_parameter(tree_t specs, tree_t decl)
+static tree_t finish_parameter(toknum_t st, tree_t specs, tree_t decl)
 {
     struct parameter_s *res = xmalloc(sizeof(*res));
     *res = (struct parameter_s){T(PARAMETER), specs, decl};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_type_name(tree_t specs, tree_t decl)
+static tree_t finish_type_name(toknum_t st, tree_t specs, tree_t decl)
 {
     struct type_name_s *res = xmalloc(sizeof(*res));
     *res = (struct type_name_s){T(TYPE_NAME), specs, decl};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_id_type(toknum_t *names)
+static tree_t finish_id_type(toknum_t st, toknum_t *names)
 {
     assert(names);
     struct id_type_s *res = xmalloc(sizeof(*res));
     *res = (struct id_type_s){T(ID_TYPE), names};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_struct(toknum_t name, tree_t *members)
+static tree_t finish_struct(toknum_t st, toknum_t name, tree_t *members)
 {
     struct struct_s *res = xmalloc(sizeof(*res));
     *res = (struct struct_s){T(STRUCT), name, members};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_union(toknum_t name, tree_t *members)
+static tree_t finish_union(toknum_t st, toknum_t name, tree_t *members)
 {
     struct union_s *res = xmalloc(sizeof(*res));
     *res = (struct union_s){T(UNION), name, members};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_enum(toknum_t name, tree_t *values)
+static tree_t finish_enum(toknum_t st, toknum_t name, tree_t *values)
 {
     struct enum_s *res = xmalloc(sizeof(*res));
     *res = (struct enum_s){T(ENUM), name, values};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_enumerator(toknum_t name, tree_t value)
+static tree_t finish_enumerator(toknum_t st, toknum_t name, tree_t value)
 {
     assert(name);
     struct enumerator_s *res = xmalloc(sizeof(*res));
     *res = (struct enumerator_s){T(ENUMERATOR), name, value};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_pointer(tree_t indtype, tree_t specs)
+static tree_t finish_pointer(toknum_t st, tree_t indtype, tree_t specs)
 {
     struct pointer_s *res = xmalloc(sizeof(*res));
     *res = (struct pointer_s){T(POINTER), indtype, specs};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_array(tree_t indtype, tree_t dim_specs, tree_t dim)
+static tree_t finish_array(toknum_t st, tree_t indtype,
+                           tree_t dim_specs, tree_t dim)
 {
     struct array_s *res = xmalloc(sizeof(*res));
     *res = (struct array_s){T(ARRAY), indtype, dim_specs, dim};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_function(tree_t indtype, tree_t *params)
+static tree_t finish_function(toknum_t st, tree_t indtype, tree_t *params)
 {
     assert(params);
     struct function_s *res = xmalloc(sizeof(*res));
     *res = (struct function_s){T(FUNCTION), indtype, params};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_block(tree_t *entities)
+static tree_t finish_block(toknum_t st, tree_t *entities)
 {
     assert(entities);
     struct block_s *res = xmalloc(sizeof(*res));
     *res = (struct block_s){T(BLOCK), entities};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_if(tree_t cond, tree_t then_br, tree_t else_br)
+static tree_t finish_if(toknum_t st, tree_t cond,
+                        tree_t then_br, tree_t else_br)
 {
     assert(cond && then_br);
     struct if_s *res = xmalloc(sizeof(*res));
     *res = (struct if_s){T(IF), cond, then_br, else_br};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_switch(tree_t cond, tree_t body)
+static tree_t finish_switch(toknum_t st, tree_t cond, tree_t body)
 {
     assert(cond && body);
     struct switch_s *res = xmalloc(sizeof(*res));
     *res = (struct switch_s){T(SWITCH), cond, body};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_while(tree_t cond, tree_t body)
+static tree_t finish_while(toknum_t st, tree_t cond, tree_t body)
 {
     assert(cond && body);
     struct while_s *res = xmalloc(sizeof(*res));
     *res = (struct while_s){T(WHILE), cond, body};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_do_while(tree_t body, tree_t cond)
+static tree_t finish_do_while(toknum_t st, tree_t body, tree_t cond)
 {
     assert(body && cond);
     struct do_while_s *res = xmalloc(sizeof(*res));
     *res = (struct do_while_s){T(DO_WHILE), cond, body};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_for(tree_t init, tree_t cond, tree_t next, tree_t body)
+static tree_t finish_for(toknum_t st, tree_t init, tree_t cond,
+                         tree_t next, tree_t body)
 {
     assert(body);
     struct for_s *res = xmalloc(sizeof(*res));
     *res = (struct for_s){T(FOR), init, cond, next, body};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_goto(toknum_t label)
+static tree_t finish_goto(toknum_t st, toknum_t label)
 {
     assert(label);
     struct goto_s *res = xmalloc(sizeof(*res));
     *res = (struct goto_s){T(GOTO), label};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_break(void)
+static tree_t finish_break(toknum_t st)
 {
     struct break_s *res = xmalloc(sizeof(*res));
     *res = (struct break_s){T(BREAK)};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_continue(void)
+static tree_t finish_continue(toknum_t st)
 {
     struct continue_s *res = xmalloc(sizeof(*res));
     *res = (struct continue_s){T(CONTINUE)};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_return(tree_t result)
+static tree_t finish_return(toknum_t st, tree_t result)
 {
     struct return_s *res = xmalloc(sizeof(*res));
     *res = (struct return_s){T(RETURN), result};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_label(toknum_t name, tree_t stmt)
+static tree_t finish_label(toknum_t st, toknum_t name, tree_t stmt)
 {
     assert(name && stmt);
     struct label_s *res = xmalloc(sizeof(*res));
     *res = (struct label_s){T(LABEL), name, stmt};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_default(tree_t stmt)
+static tree_t finish_default(toknum_t st, tree_t stmt)
 {
     assert(stmt);
     struct default_s *res = xmalloc(sizeof(*res));
     *res = (struct default_s){T(DEFAULT), stmt};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_case(tree_t expr, tree_t stmt)
+static tree_t finish_case(toknum_t st, tree_t expr, tree_t stmt)
 {
     assert(stmt);
     struct case_s *res = xmalloc(sizeof(*res));
     *res = (struct case_s){T(CASE), expr, stmt};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_identifier(toknum_t value)
+static tree_t finish_identifier(toknum_t st, toknum_t value)
 {
     struct identifier_s *res = xmalloc(sizeof(*res));
     *res = (struct identifier_s){T(IDENTIFIER), value};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_constant(toknum_t value)
+static tree_t finish_constant(toknum_t st, toknum_t value)
 {
     struct constant_s *res = xmalloc(sizeof(*res));
     *res = (struct constant_s){T(CONSTANT), value};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_special(toknum_t value)
+static tree_t finish_special(toknum_t st, toknum_t value)
 {
     struct special_s *res = xmalloc(sizeof(*res));
     *res = (struct special_s){T(SPECIAL), value};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_empty(void)
+static tree_t finish_empty(toknum_t st)
 {
     struct empty_s *res = xmalloc(sizeof(*res));
     *res = (struct empty_s){T(EMPTY)};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_accessor(tree_t left, toknum_t op, toknum_t field)
+static tree_t finish_accessor(toknum_t st, tree_t left,
+                              toknum_t op, toknum_t field)
 {
     assert(left && op && field);
     struct accessor_s *res = xmalloc(sizeof(*res));
     *res = (struct accessor_s){T(ACCESSOR), left, op, field};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_comma(tree_t *exprs)
+static tree_t finish_comma(toknum_t st, tree_t *exprs)
 {
     assert(exprs);
     struct comma_s *res = xmalloc(sizeof(*res));
     *res = (struct comma_s){T(COMMA), exprs};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_call(tree_t left, tree_t *args)
+static tree_t finish_call(toknum_t st, tree_t left, tree_t *args)
 {
     assert(left && args);
     struct call_s *res = xmalloc(sizeof(*res));
     *res = (struct call_s){T(CALL), left, args};
-    return finish(res);
+    return finish(st, res);
 }
 
-static tree_t finish_cast(tree_t type_name, tree_t expr)
+static tree_t finish_cast(toknum_t st, tree_t type_name, tree_t expr)
 {
     assert(type_name && expr);
     struct cast_s *res = xmalloc(sizeof(*res));
     *res = (struct cast_s){T(CAST), type_name, expr};
-    return finish(res);
+    return finish(st, res);
 }
 
 
 
-static tree_t finish_conditional(tree_t cond, tree_t then_br, tree_t else_br)
+static tree_t finish_conditional(toknum_t st, tree_t cond,
+                                 tree_t then_br, tree_t else_br)
 {
     assert(cond && then_br && else_br);
     struct conditional_s *res = xmalloc(sizeof(*res));
     *res = (struct conditional_s){T(CONDITIONAL), cond, then_br, else_br};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_subscript(tree_t left, tree_t index)
+static tree_t finish_subscript(toknum_t st, tree_t left, tree_t index)
 {
     assert(left && index);
     struct subscript_s *res = xmalloc(sizeof(*res));
     *res = (struct subscript_s){T(SUBSCRIPT), left, index};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_unary(toknum_t op, tree_t expr)
+static tree_t finish_unary(toknum_t st, toknum_t op, tree_t expr)
 {
     assert(op && expr);
     struct unary_s *res = xmalloc(sizeof(*res));
     *res = (struct unary_s){T(UNARY), op, expr};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_binary(tree_t left, toknum_t op, tree_t right)
+static tree_t finish_binary(toknum_t st, tree_t left, toknum_t op, tree_t right)
 {
     assert(left && op && right);
     struct binary_s *res = xmalloc(sizeof(*res));
     *res = (struct binary_s){T(BINARY), left, op, right};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_assignment(tree_t left, toknum_t op, tree_t right)
+static tree_t finish_assignment(toknum_t st, tree_t left,
+                                toknum_t op, tree_t right)
 {
     assert(left && op && right);
     struct assignment_s *res = xmalloc(sizeof(*res));
     *res = (struct assignment_s){T(ASSIGNMENT), left, op, right};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_comp_literal(tree_t type_name, tree_t *members)
+static tree_t finish_comp_literal(toknum_t st, tree_t type_name,
+                                  tree_t *members)
 {
     assert(members);
     struct comp_literal_s *res = xmalloc(sizeof(*res));
     *res = (struct comp_literal_s){T(COMP_LITERAL), type_name, members};
-    return finish(res);
+    return finish(st, res);
 }
 
 
-static tree_t finish_comp_member(tree_t *designs, tree_t init)
+static tree_t finish_comp_member(toknum_t st, tree_t *designs, tree_t init)
 {
     assert(init);
     struct comp_member_s *res = xmalloc(sizeof(*res));
     *res = (struct comp_member_s){T(COMP_MEMBER), designs, init};
-    return finish(res);
+    return finish(st, res);
 }
 
 
@@ -590,6 +609,7 @@ static tree_t translation_unit(void);
 static tree_t cast_expression(bool after_sizeof)
 {
     tree_t left;
+    toknum_t st = current;
 
     switch (peek(1))
     {
@@ -642,19 +662,19 @@ static tree_t cast_expression(bool after_sizeof)
                 else if (after_sizeof)
                     return left;
                 else
-                    return finish_cast(left, cast_expression(false));
+                    return finish_cast(st, left, cast_expression(false));
 
             break;
 
         // Primary expression.
         case TOK_IDENTIFIER:
-            left = finish_identifier(consume());
+            left = finish_identifier(st, consume());
             break;
 
         case TOK_NUM_CONST:
         case TOK_CHAR_CONST:
         case TOK_STRING:
-            left = finish_constant(consume());
+            left = finish_constant(st, consume());
             break;
 
         // Prefix unary operators.
@@ -668,14 +688,14 @@ static tree_t cast_expression(bool after_sizeof)
         case PN_EXCLAIM:
         {
             toknum_t op = consume();
-            return finish_unary(op, cast_expression(false));
+            return finish_unary(st, op, cast_expression(false));
         }
 
         // `sizeof` operator.
         case KW_SIZEOF:
         {
             toknum_t op = consume();
-            return finish_unary(op, cast_expression(true));
+            return finish_unary(st, op, cast_expression(true));
         }
     }
 
@@ -703,10 +723,14 @@ static tree_t postfix_expression_suffixes(tree_t left)
     for(;;) switch (peek(1))
     {
         case PN_LSQUARE:
+        {
+            tree_t expr;
             consume();
-            left = finish_subscript(left, expression());
+            expr = expression();
             expect(PN_RSQUARE);
+            left = finish_subscript(left->start, left, expr);
             break;
+        }
 
         case PN_LPAREN:
         {
@@ -720,7 +744,7 @@ static tree_t postfix_expression_suffixes(tree_t left)
                     expect(PN_COMMA);
             }
 
-            left = finish_call(left, args);
+            left = finish_call(left->start, left, args);
             break;
         }
 
@@ -728,14 +752,18 @@ static tree_t postfix_expression_suffixes(tree_t left)
         case PN_ARROW:
         {
             toknum_t op = consume();
-            left = finish_accessor(left, op, expect(TOK_IDENTIFIER));
+            toknum_t field = expect(TOK_IDENTIFIER);
+            left = finish_accessor(left->start, left, op, field);
             break;
         }
 
         case PN_PLUSPLUS:
         case PN_MINUSMINUS:
-            left = finish_unary(consume(), left);
+        {
+            toknum_t st = current;
+            left = finish_unary(st, consume(), left);
             break;
+        }
 
         default:
             return left;
@@ -776,7 +804,7 @@ static tree_t binary_expression(void)
         // Logical.
         case PN_AMPAMP: case PN_PIPEPIPE:
             op = consume();
-            left = finish_binary(left, op, cast_expression(false));
+            left = finish_binary(left->start, left, op, cast_expression(false));
             break;
 
         default:
@@ -801,7 +829,7 @@ static tree_t conditional_expression(void)
     expect(PN_COLON);
     else_br = conditional_expression();
 
-    return finish_conditional(cond, then_br, else_br);
+    return finish_conditional(cond->start, cond, then_br, else_br);
 }
 
 
@@ -839,7 +867,7 @@ static tree_t assignment_expression(void)
             return lhs;
     }
 
-    return finish_assignment(lhs, op, assignment_expression());
+    return finish_assignment(lhs->start, lhs, op, assignment_expression());
 }
 
 
@@ -861,7 +889,7 @@ static tree_t expression(void)
     while (accept(PN_COMMA))
         vec_push(exprs, assignment_expression());
 
-    return finish_comma(exprs);
+    return finish_comma(exprs[0]->start, exprs);
 }
 
 
@@ -892,7 +920,10 @@ static tree_t declaration(void)
     tree_t specs = declaration_specifiers(false);
 
     if (accept(PN_SEMI))
-        return finish_declaration(specs, NULL);
+    {
+        assert(specs);
+        return finish_declaration(specs->start, specs, NULL);
+    }
 
     return declaration_inner(specs, init_declarator());
 }
@@ -900,6 +931,9 @@ static tree_t declaration(void)
 
 static tree_t declaration_inner(tree_t specs, tree_t first_declarator)
 {
+    assert(specs || first_declarator);
+
+    toknum_t st = (specs ? specs : first_declarator)->start;
     tree_t *decls = new_vec(tree_t, 1);
     vec_push(decls, first_declarator);
 
@@ -907,7 +941,7 @@ static tree_t declaration_inner(tree_t specs, tree_t first_declarator)
         vec_push(decls, init_declarator());
 
     expect(PN_SEMI);
-    return finish_declaration(specs, decls);
+    return finish_declaration(st, specs, decls);
 }
 
 
@@ -938,6 +972,7 @@ static tree_t declaration_inner(tree_t specs, tree_t first_declarator)
  */
 static tree_t declaration_specifiers(bool agressive)
 {
+    toknum_t st = current;
     toknum_t storage = 0;
     toknum_t fnspec = 0;
     tree_t dirtype = NULL;
@@ -1007,13 +1042,13 @@ static tree_t declaration_specifiers(bool agressive)
                 if (dirtype)
                     dispose_tree(dirtype);
 
-                dirtype = finish_id_type(names);
+                dirtype = finish_id_type(names[0], names);
             }
 
             if (!(dirtype || storage || quals || fnspec))
                 return NULL;
 
-            return finish_specifiers(storage, fnspec, quals, dirtype);
+            return finish_specifiers(st, storage, fnspec, quals, dirtype);
     }
 }
 
@@ -1047,7 +1082,8 @@ static tree_t struct_or_union_specifier(void)
 {
     assert(next_is(KW_STRUCT) || next_is(KW_UNION));
 
-    tree_t (*ctor)(toknum_t, tree_t *);
+    toknum_t st = current;
+    tree_t (*ctor)(toknum_t, toknum_t, tree_t *);
     toknum_t name;
     tree_t *members;
 
@@ -1058,7 +1094,7 @@ static tree_t struct_or_union_specifier(void)
     name = accept(TOK_IDENTIFIER);
 
     if (!accept(PN_LBRACE))
-        return ctor(name, NULL);
+        return ctor(st, name, NULL);
 
     members = new_vec(tree_t, 4);
 
@@ -1066,7 +1102,7 @@ static tree_t struct_or_union_specifier(void)
     while (!accept(PN_RBRACE))
         vec_push(members, declaration());
 
-    return ctor(name, members);
+    return ctor(st, name, members);
 }
 
 
@@ -1084,6 +1120,7 @@ static tree_t struct_or_union_specifier(void)
  */
 static tree_t enum_specifier(void)
 {
+    toknum_t st = current;
     tree_t *enumerators;
     toknum_t enum_name = 0;
 
@@ -1093,7 +1130,7 @@ static tree_t enum_specifier(void)
     {
         enum_name = consume();
         if (!next_is(PN_LBRACE))
-            return finish_enum(enum_name, NULL);
+            return finish_enum(st, enum_name, NULL);
     }
 
     expect(PN_LBRACE);
@@ -1102,14 +1139,14 @@ static tree_t enum_specifier(void)
     while (!accept(PN_RBRACE))
     {
         toknum_t enumerator_name = expect(TOK_IDENTIFIER);
-        tree_t enumerator = finish_enumerator(enumerator_name,
+        tree_t enumerator = finish_enumerator(enumerator_name, enumerator_name,
             accept(PN_EQ) ? constant_expression() : NULL);
 
         vec_push(enumerators, enumerator);
         accept(PN_COMMA);
     }
 
-    return finish_enum(enum_name, enumerators);
+    return finish_enum(st, enum_name, enumerators);
 }
 
 
@@ -1123,6 +1160,7 @@ static tree_t enum_specifier(void)
  */
 static tree_t init_declarator(void)
 {
+    toknum_t st = current;
     toknum_t name = 0;
     tree_t init = NULL;
     tree_t indtype = NULL;
@@ -1136,7 +1174,7 @@ static tree_t init_declarator(void)
     else if (accept(PN_COLON))
         bitsize = constant_expression();
 
-    return finish_declarator(indtype, name, init, bitsize);
+    return finish_declarator(st, indtype, name, init, bitsize);
 }
 
 
@@ -1156,6 +1194,7 @@ static tree_t init_declarator(void)
  */
 static tree_t declarator_inner(toknum_t *name)
 {
+    toknum_t st = current;
     tree_t specs;
 
     if (!accept(PN_STAR))
@@ -1171,7 +1210,7 @@ static tree_t declarator_inner(toknum_t *name)
         case TOK_IDENTIFIER:
         case PN_LSQUARE:
         case PN_LPAREN:
-            return finish_pointer(declarator_inner(name), specs);
+            return finish_pointer(st, declarator_inner(name), specs);
     }
 
     // Unexpected abstract declarator.
@@ -1179,7 +1218,7 @@ static tree_t declarator_inner(toknum_t *name)
         *name = 0;
 
     // Only pointer within abstract declarator.
-    return finish_pointer(NULL, specs);
+    return finish_pointer(st, NULL, specs);
 }
 
 
@@ -1217,6 +1256,7 @@ static tree_t declarator_inner(toknum_t *name)
  */
 static tree_t direct_declarator_inner(toknum_t *name)
 {
+    toknum_t st = current;
     tree_t indtype = NULL;
     toknum_t ident = 0;
 
@@ -1231,17 +1271,20 @@ static tree_t direct_declarator_inner(toknum_t *name)
         {
             tree_t dim_specs;
             tree_t dimension = NULL;
-
             consume();
+
             dim_specs = declaration_specifiers(false);
 
             if (next_is(PN_STAR))
-                dimension = finish_special(consume());
+            {
+                toknum_t star = consume();
+                dimension = finish_special(star, star);
+            }
             else if (!next_is(PN_RSQUARE))
                 dimension = assignment_expression();
 
-            indtype = finish_array(indtype, dim_specs, dimension);
             expect(PN_RSQUARE);
+            indtype = finish_array(st, indtype, dim_specs, dimension);
             break;
         }
 
@@ -1269,8 +1312,10 @@ static tree_t direct_declarator_inner(toknum_t *name)
 
             while (!accept(PN_RPAREN))
             {
+                toknum_t param_st = current;
+
                 if (next_is(PN_ELLIPSIS))
-                    vec_push(params, finish_special(consume()));
+                    vec_push(params, finish_special(param_st, consume()));
                 else
                 {
                     tree_t specs = declaration_specifiers(true);
@@ -1279,14 +1324,15 @@ static tree_t direct_declarator_inner(toknum_t *name)
                     if (!(next_is(PN_COMMA) || next_is(PN_RPAREN)))
                         declarator = init_declarator();
 
-                    vec_push(params, finish_parameter(specs, declarator));
+                    vec_push(params, finish_parameter(param_st, specs,
+                                                      declarator));
                 }
 
                 if (!next_is(PN_RPAREN))
                     expect(PN_COMMA);
             }
 
-            indtype = finish_function(indtype, params);
+            indtype = finish_function(st, indtype, params);
             break;
         }
 
@@ -1315,11 +1361,13 @@ static tree_t direct_declarator_inner(toknum_t *name)
  */
 static tree_t compound_literal(tree_t type)
 {
+    toknum_t st = type ? type->start : current;
     tree_t *members = new_vec(tree_t, 3);
     expect(PN_LBRACE);
 
     while (!accept(PN_RBRACE))
     {
+        toknum_t member_st = current;
         tree_t *designators = NULL;
 
         // Parse any designators.
@@ -1334,19 +1382,23 @@ static tree_t compound_literal(tree_t type)
                 expect(PN_RSQUARE);
             }
             else if (accept(PN_PERIOD))
-                vec_push(designators, finish_identifier(consume()));
+            {
+                toknum_t ident = consume();
+                vec_push(designators, finish_identifier(ident, ident));
+            }
         }
 
         if (designators)
             expect(PN_EQ);
 
-        vec_push(members, finish_comp_member(designators, initializer()));
+        vec_push(members, finish_comp_member(member_st, designators,
+                                             initializer()));
 
         if (!next_is(PN_RBRACE))
             expect(PN_COMMA);
     }
 
-    return finish_comp_literal(type, members);
+    return finish_comp_literal(st, type, members);
 }
 
 
@@ -1368,10 +1420,11 @@ static tree_t initializer(void)
  */
 static tree_t type_name(void)
 {
+    toknum_t st = current;
     tree_t specs = declaration_specifiers(true);
     tree_t decl = declarator_inner(NULL);
 
-    return finish_type_name(specs, decl);
+    return finish_type_name(st, specs, decl);
 }
 
 
@@ -1387,12 +1440,13 @@ static tree_t type_name(void)
  */
 static tree_t declaration_or_fn_definition(void)
 {
+    toknum_t st = current;
     tree_t specs = declaration_specifiers(true);
     struct declarator_s *declarator;
     bool is_function = false;
 
     if (accept(PN_SEMI))
-        return finish_declaration(specs, NULL);
+        return finish_declaration(st, specs, NULL);
 
     declarator = (struct declarator_s *)init_declarator();
 
@@ -1415,7 +1469,8 @@ static tree_t declaration_or_fn_definition(void)
         }
 
         body = compound_statement();
-        return finish_function_def(specs, (tree_t)declarator, old_decls, body);
+        return finish_function_def(st, specs, (tree_t)declarator,
+                                   old_decls, body);
     }
 
     // Declaration, otherwise.
@@ -1479,31 +1534,30 @@ static tree_t statement(void)
  */
 static tree_t labeled_statement(void)
 {
-    switch (peek(1))
+    enum token_e kind = peek(1);
+    toknum_t st = consume();
+
+    switch (kind)
     {
         case KW_CASE:
         {
-            tree_t const_expr;
-            consume();
-            const_expr = constant_expression();
+            tree_t const_expr = constant_expression();
             expect(PN_COLON);
-
-            return finish_case(const_expr, statement());
+            return finish_case(st, const_expr, statement());
         }
 
         case TOK_IDENTIFIER:
         {
-            toknum_t ident = consume();
             expect(PN_COLON);
-
-            return finish_label(ident, statement());
+            return finish_label(st, st, statement());
         }
 
         case KW_DEFAULT:
-            consume();
             expect(PN_COLON);
+            return finish_default(st, statement());
 
-            return finish_default(statement());
+        default:
+            assert(0);
     }
 
     return NULL;
@@ -1524,13 +1578,13 @@ static tree_t labeled_statement(void)
 static tree_t compound_statement(void)
 {
     tree_t *entities = new_vec(tree_t, 8);
-    expect(PN_LBRACE);
+    toknum_t st = expect(PN_LBRACE);
 
     while (!accept(PN_RBRACE))
         vec_push(entities, starts_declaration(true) ? declaration()
-                                                       : statement());
+                                                    : statement());
 
-    return finish_block(entities);
+    return finish_block(st, entities);
 }
 
 
@@ -1540,7 +1594,8 @@ static tree_t compound_statement(void)
  */
 static tree_t expression_statement(void)
 {
-    tree_t expr = next_is(PN_SEMI) ? finish_empty() : expression();
+    tree_t expr = next_is(PN_SEMI) ? finish_empty(current)
+                                   : expression();
     accept(PN_SEMI);
     return expr;
 }
@@ -1553,6 +1608,8 @@ static tree_t expression_statement(void)
  */
 static tree_t selection_statement(void)
 {
+    toknum_t st = current;
+
     if (accept(KW_IF))
     {
         tree_t cond, then_br, else_br = NULL;
@@ -1565,7 +1622,7 @@ static tree_t selection_statement(void)
         if (accept(KW_ELSE))
             else_br = statement();
 
-        return finish_if(cond, then_br, else_br);
+        return finish_if(st, cond, then_br, else_br);
     }
 
     if (accept(KW_SWITCH))
@@ -1577,9 +1634,10 @@ static tree_t selection_statement(void)
         expect(PN_RPAREN);
         body = statement();
 
-        return finish_switch(cond, body);
+        return finish_switch(st, cond, body);
     }
 
+    assert(0);
     return NULL;
 }
 
@@ -1595,7 +1653,7 @@ static tree_t iteration_statement(void)
 {
     tree_t cond, body;
     enum token_e kind = peek(1);
-    consume();
+    toknum_t st = consume();
 
     switch (kind)
     {
@@ -1605,7 +1663,7 @@ static tree_t iteration_statement(void)
             expect(PN_RPAREN);
             body = statement();
 
-            return finish_while(cond, body);
+            return finish_while(st, cond, body);
 
         case KW_DO:
             body = statement();
@@ -1615,7 +1673,7 @@ static tree_t iteration_statement(void)
             expect(PN_RPAREN);
             expect(PN_SEMI);
 
-            return finish_do_while(body, cond);
+            return finish_do_while(st, body, cond);
 
         case KW_FOR:
         {
@@ -1638,12 +1696,14 @@ static tree_t iteration_statement(void)
             expect(PN_RPAREN);
             body = statement();
 
-            return finish_for(init, cond, next, body);
+            return finish_for(st, init, cond, next, body);
         }
 
         default:
             assert(0);
     }
+
+    return NULL;
 }
 
 
@@ -1658,28 +1718,25 @@ static tree_t jump_statement(void)
 {
     tree_t stmt = NULL;
     enum token_e kind = peek(1);
-    consume();
+    toknum_t st = consume();
 
     switch (kind)
     {
         case KW_GOTO:
-            stmt = finish_goto(expect(TOK_IDENTIFIER));
+            stmt = finish_goto(st, expect(TOK_IDENTIFIER));
             break;
 
         case KW_CONTINUE:
-            stmt = finish_continue();
+            stmt = finish_continue(st);
             break;
 
         case KW_BREAK:
-            stmt = finish_break();
+            stmt = finish_break(st);
             break;
 
         case KW_RETURN:
-        {
-            tree_t expr = next_is(PN_SEMI) ? NULL : expression();
-            stmt = finish_return(expr);
+            stmt = finish_return(st, next_is(PN_SEMI) ? NULL : expression());
             break;
-        }
 
         default:
             assert(0);
@@ -1700,12 +1757,13 @@ static tree_t jump_statement(void)
  */
 static tree_t translation_unit(void)
 {
+    toknum_t st = current;
     tree_t *entities = new_vec(tree_t, 20);
 
     while (!accept(TOK_EOF))
         vec_push(entities, declaration_or_fn_definition());
 
-    return finish_transl_unit(entities);
+    return finish_transl_unit(st, entities);
 }
 
 
