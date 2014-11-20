@@ -260,4 +260,17 @@ void test_lexer(void)
         assert(check("/*\n", ((T){TOK_UNKNOWN})));
         assert(check("/* test\n", ((T){TOK_UNKNOWN})));
     }
+
+    test("backslash + newline");
+    {
+        assert(check("a\\\nb", ((T){TOK_IDENTIFIER})));
+        assert(check("a\\  \nb", ((T){TOK_IDENTIFIER})));
+        assert(check("\"a\\\nb\"", ((T){TOK_STRING})));
+        assert(check("'\\\\\n0'", ((T){TOK_CHAR_CONST})));
+        assert(check("'\\\\  \n0'", ((T){TOK_CHAR_CONST})));
+        assert(check("1000  \\   \n + \\\n 20",
+            ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
+        assert(check("1+ \\\n\\\n\\\n 2",
+            ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
+    }
 }

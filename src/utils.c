@@ -116,11 +116,11 @@ static inline unsigned get_line_len(unsigned line)
 
     if (line+1 == vec_len(g_lines))
     {
-        char *nl = strchr(g_lines[line], '\n');
-        return nl ? nl - g_lines[line] : strlen(g_lines[line]);
+        char *nl = strchr(g_lines[line].start, '\n');
+        return nl ? nl - g_lines[line].start : strlen(g_lines[line].start);
     }
 
-    return g_lines[line+1] - g_lines[line] - 1;
+    return g_lines[line+1].start - g_lines[line].start - 1;
 }
 
 
@@ -171,7 +171,7 @@ void *warn_at(unsigned line, unsigned column, const char *format, ...)
     for (unsigned i = line_from; i <= line_to; ++i)
     {
         fprintf(stderr, "  %*d | %.*s\n", line_width, i+1, get_line_len(i),
-                                          g_lines[i]);
+                                          g_lines[i].start);
         if (i == line)
             fprintf(stderr, "%s\n", pointer);
     }

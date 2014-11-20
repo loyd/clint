@@ -25,7 +25,8 @@ static bool parsing_pp_directive;
 
 
 #define warn(...)                                                             \
-    warn_at(vec_len(g_lines)-1, ch-g_lines[vec_len(g_lines)-1], __VA_ARGS__)
+    warn_at(vec_len(g_lines) - 1, ch - g_lines[vec_len(g_lines) - 1].start,   \
+            __VA_ARGS__)
 
 
 void init_lexer(void)
@@ -34,7 +35,7 @@ void init_lexer(void)
     assert(!g_lines);
 
     g_lines = new_vec(char *, 128);
-    vec_push(g_lines, g_data);
+    vec_push(g_lines, ((line_t){g_data, false}));
 
     ch = g_data;
     parsing_header_name = false;
@@ -109,20 +110,46 @@ static inline enum token_e find_pp(const char *word, int len)
 //!@}
 
 
-static inline void newline(void)
+static void eat(int num)
 {
-    assert(*ch == '\n');
-    vec_push(g_lines, ++ch);
+    assert(num > 0);
+
+    if (*ch == '\n')
+        vec_push(g_lines, ((line_t){ch + 1, false}));
+
+    // Frequent case.
+    if (num == 1 && ch[1] != '\\')
+    {
+        ++ch;
+        return;
+    }
+
+    // Common case.
+    do
+        /* Check backslash + newline. This approach doesn't cover all cases,
+         * but it's sufficient for literals, macros and identifiers.
+         * Therefore this cannot affect any real program.
+         */
+        while (*++ch == '\\')
+        {
+            while (isspace(ch[1]))
+                if (*++ch == '\n')
+                    break;
+
+            if (*ch != '\n')
+                break;
+
+            g_lines[vec_len(g_lines)-1].dangling = true;
+            vec_push(g_lines, ((line_t){ch + 1, false}));
+        }
+    while (--num);
 }
 
 
 static inline void skip_spaces(void)
 {
     while (isspace(*ch))
-        if (*ch == '\n')
-            newline();
-        else
-            ++ch;
+        eat(1);
 }
 
 
@@ -155,33 +182,33 @@ static bool numeric_const(token_t *token)
     bool is_float = false;
 
     while (isxdigit(*ch))
-        ++ch;
+        eat(1);
     if (tolower(*ch) == 'x')
-        ++ch;
+        eat(1);
     while (isxdigit(*ch))
-        ++ch;
+        eat(1);
 
     if (*ch == '.')
     {
         is_float = true;
-        ++ch;
+        eat(1);
     }
 
     while (isxdigit(*ch))
-        ++ch;
+        eat(1);
     if (tolower(*ch) == 'p')
-        ++ch;
+        eat(1);
 
     if (is_float && (tolower(ch[-1]) == 'e' || tolower(ch[-1]) == 'p'))
     {
         if (*ch == '+' || *ch == '-')
-            ++ch;
+            eat(1);
         while (isdigit(*ch))
-            ++ch;
+            eat(1);
     }
 
     while (isalpha(*ch))
-        ++ch;
+        eat(1);
 
     token->kind = TOK_NUM_CONST;
     return true;
@@ -196,20 +223,20 @@ static bool char_const(token_t *token)
     assert(token);
     assert(*ch == '\'' ||  *ch == 'L' && ch[1] == '\'');
 
-    ch += *ch == 'L' ? 2 : 1;
+    eat(*ch == 'L' ? 2 : 1);
     while (*ch && *ch != '\n' && *ch != '\'')
     {
         if (*ch == '\\')
-            ++ch;
+            eat(1);
         if (*ch)
-            ++ch;
+            eat(1);
     }
 
     if (*ch != '\'')
         return warn("Unexpected %s while parsing character constant",
                     *ch ? "newline" : "EOB");
 
-    ++ch;
+    eat(1);
 
     token->kind = TOK_CHAR_CONST;
     return true;
@@ -224,20 +251,20 @@ static bool string_literal(token_t *token)
     assert(token);
     assert(*ch == '"' ||  *ch == 'L' && ch[1] == '"');
 
-    ch += *ch == 'L' ? 2 : 1;
+    eat(*ch == 'L' ? 2 : 1);
     while (*ch && *ch != '\n' && *ch != '"')
     {
         if (*ch == '\\')
-            ++ch;
+            eat(1);
         if (*ch)
-            ++ch;
+            eat(1);
     }
 
     if (*ch != '"')
         return warn("Unexpected %s while parsing string literal",
                     *ch ? "newline" : "EOB");
 
-    ++ch;
+    eat(1);
 
     token->kind = TOK_STRING;
     return true;
@@ -278,7 +305,7 @@ static bool identifier(token_t *token)
     const char *start = ch;
 
     do
-        ch += *ch == '\\' ? (ch[1] == 'u' ? 6 : 10) : 1;
+        eat(*ch == '\\' ? (ch[1] == 'u' ? 6 : 10) : 1);
     while (isalnum(*ch) || *ch == '_' || check_ucn());
 
     if (parsing_pp_directive)
@@ -390,7 +417,7 @@ static bool punctuator(token_t *token)
             assert(0);
     }
 
-    ch += strlen(puncts[kind - PN_LSQUARE]);
+    eat(strlen(puncts[kind - PN_LSQUARE]));
 
     token->kind = kind;
     return true;
@@ -405,27 +432,24 @@ static bool comment(token_t *token)
     assert(token);
     assert(*ch == '/' && (ch[1] == '*' || ch[1] == '/'));
 
-    ch += 2;
+    eat(2);
 
     if (ch[-1] == '*')
     {
         if (*ch == '/')
-            ++ch;
+            eat(1);
 
         while (*ch && !(ch[-1] == '*' && *ch == '/'))
-            if (*ch == '\n')
-                newline();
-            else
-                ++ch;
+            eat(1);
 
         if (!*ch)
             return warn("Unexpected EOB while parsing comment");
 
-        ++ch;
+        eat(1);
     }
     else
         while (*ch && *ch != '\n')
-            ++ch;
+            eat(1);
 
     token->kind = TOK_COMMENT;
     return true;
@@ -443,14 +467,14 @@ static bool header_name(token_t *token)
     int expected = *ch == '<' ? '>' : '"';
 
     do
-        ++ch;
+        eat(1);
     while (*ch && *ch != '\n' && *ch != expected);
 
     if (*ch != expected)
         return warn("Unexpected %s while parsing header name",
                     *ch ? "newline" : "EOB");
 
-    ++ch;
+    eat(1);
 
     token->kind = TOK_HEADER_NAME;
     return true;
@@ -466,7 +490,7 @@ void pull_token(token_t *token)
 
     token->start.pos = ch - g_data;
     token->start.line = vec_len(g_lines) - 1;
-    token->start.column = ch - g_lines[vec_len(g_lines) - 1];
+    token->start.column = ch - g_lines[vec_len(g_lines) - 1].start;
 
     switch (*ch)
     {
@@ -567,7 +591,7 @@ void pull_token(token_t *token)
             // Fallthrough.
 
         default:
-            ++ch;
+            eat(1);
             success = false;
             break;
     }
@@ -576,6 +600,6 @@ void pull_token(token_t *token)
         token->kind = TOK_UNKNOWN;
 
     token->end.pos = ch - g_data;
-    token->end.line = vec_len(g_lines);
-    token->end.column = ch - g_lines[vec_len(g_lines)] - 1;
+    token->end.line = vec_len(g_lines) - 1;
+    token->end.column = ch - g_lines[vec_len(g_lines) - 1].start - 1;
 }

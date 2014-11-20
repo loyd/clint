@@ -14,13 +14,19 @@
 #include "tree.h"
 
 
+typedef struct {
+    char *start;    //!< Place within `g_data`.
+    bool dangling;  //!< w/ backslash + newline.
+} line_t;
+
+
 /*!
  * Global state.
  */
 //!@{
 extern char     *g_filename;    //!< Name of the current file.
 extern char     *g_data;        //!< Content of the current file.
-extern char    **g_lines;       //!< Pointers to starts of line.
+extern line_t   *g_lines;       //!< Pointers to starts of line.
 extern tree_t    g_tree;        //!< Tree of the current file.
 extern token_t  *g_tokens;      //!< 1-indexed consumed tokens.
 //!@}
