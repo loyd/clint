@@ -41,6 +41,16 @@ static enum token_e peek(unsigned lookahead)
         token_t token;
         pull_token(&token);
 
+        // Skip preprocessor.
+        while (token.kind == PN_HASH)
+        {
+            int line = token.start.line;
+            do
+                pull_token(&token);
+            while (token.start.line == line ||
+                   g_lines[token.start.line-1].dangling);
+        }
+
         // Skip comments.
         if (token.kind != TOK_COMMENT)
             vec_push(g_tokens, token);
@@ -82,9 +92,9 @@ static toknum_t expect(enum token_e kind)
 }
 
 
-////////////
-// Nodes. //
-////////////
+///////////////////
+// Constructors. //
+///////////////////
 
 #define T(type) type, 0, 0
 #define finish(st, tree) finish(st, (void *)tree)
@@ -517,7 +527,7 @@ static bool starts_declaration(bool agressive)
                     if (peek(3) == PN_RPAREN)
                         return true;
 
-                    return agressive;// && peek(3) == TOK_IDENTIFIER;
+                    return agressive;
 
                 case TOK_IDENTIFIER: case KW_TYPEDEF:
                 case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:

@@ -1,6 +1,6 @@
-[comments]
+[skipping]
 
-multi-line skipping
+multi-line comments
 ===================
 /* One "two" 'three'. */
 void f(/* ... */) {
@@ -42,8 +42,7 @@ transl-unit
     ]
 ~~~~~~~~~~~~~~~~~~~
 
-
-single-line skipping
+single-line comments
 ====================
 // One.
 void f() { // Two. \
@@ -75,6 +74,63 @@ transl-unit
                 ]
     ]
 ~~~~~~~~~~~~~~~~~~~~
+
+preprocessor
+============
+#define one x
+#define two(x) x + \
+    y
+
+#define tree x x x x \
+             y y y   \
+             z z     \
+             k
+int a;
+~~~~~~~~~~~~
+transl-unit
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (a)
+            ]
+    ]
+~~~~~~~~~~~~
+
+
+preprocessor with comments
+==========================
+/*..*/ #define one /*
+*/
+#define two //
+int a,
+#define three //  \
+    x x x
+b,
+#define four x x x \
+             y y /*
+             x x */
+c;
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (a)
+                declarator
+                    :name (b)
+                declarator
+                    :name (c)
+            ]
+    ]
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 
 [function definitions]
