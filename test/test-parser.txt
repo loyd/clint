@@ -1,3 +1,82 @@
+[comments]
+
+multi-line skipping
+===================
+/* One "two" 'three'. */
+void f(/* ... */) {
+    1;
+    /* " */
+    2;
+    /* /* * / */
+    /*>*/3/*<*/;
+    /*/*/
+    4;
+    /* Multi-line comment. \
+    */
+    5;
+}
+~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params []
+                :name (f)
+            :body block
+                :entities [
+                    constant
+                        :value (1)
+                    constant
+                        :value (2)
+                    constant
+                        :value (3)
+                    constant
+                        :value (4)
+                    constant
+                        :value (5)
+                ]
+    ]
+~~~~~~~~~~~~~~~~~~~
+
+
+single-line skipping
+====================
+// One.
+void f() { // Two. \
+    1;
+    1;
+// Three. 2;
+    2; // Four.
+    3;
+}
+~~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params []
+                :name (f)
+            :body block
+                :entities [
+                    constant
+                        :value (1)
+                    constant
+                        :value (2)
+                    constant
+                        :value (3)
+                ]
+    ]
+~~~~~~~~~~~~~~~~~~~~
+
+
 [function definitions]
 
 w/o parameters

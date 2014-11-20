@@ -9,6 +9,7 @@
 #include "tokens.h"
 
 
+//#TODO: support for comments.
 //#TODO: preprocessor.
 //#TODO: panic-mode error handling system.
 //#TODO: correct EOB handling.
@@ -39,7 +40,10 @@ static enum token_e peek(unsigned lookahead)
     {
         token_t token;
         pull_token(&token);
-        vec_push(g_tokens, token);
+
+        // Skip comments.
+        if (token.kind != TOK_COMMENT)
+            vec_push(g_tokens, token);
     }
 
     return g_tokens[required - 1].kind;
