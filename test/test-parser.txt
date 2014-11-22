@@ -2,19 +2,19 @@
 
 multi-line comments
 ===================
-/* One "two" 'three'. */
-void f(/* ... */) {
-    1;
-    /* " */
-    2;
-    /* /* * / */
-    /*>*/3/*<*/;
-    /*/*/
-    4;
-    /* Multi-line comment. \
-    */
-    5;
-}
+    /* One "two" 'three'. */
+    void f(/* ... */) {
+        1;
+        /* " */
+        2;
+        /* /* * / */
+        /*>*/3/*<*/;
+        /*/*/
+        4;
+        /* Multi-line comment. \
+        */
+        5;
+    }
 ~~~~~~~~~~~~~~~~~~~
 transl-unit
     :entities [
@@ -44,14 +44,14 @@ transl-unit
 
 single-line comments
 ====================
-// One.
-void f() { // Two. \
-    1;
-    1;
-// Three. 2;
-    2; // Four.
-    3;
-}
+    // One.
+    void f() { // Two. \
+        1;
+        1;
+    // Three. 2;
+        2; // Four.
+        3;
+    }
 ~~~~~~~~~~~~~~~~~~~~
 transl-unit
     :entities [
@@ -77,15 +77,15 @@ transl-unit
 
 preprocessor
 ============
-#define one x
-#define two(x) x + \
-    y
+    #define one x
+    #define two(x) x + \
+        y
 
-#define tree x x x x \
-             y y y   \
-             z z     \
-             k
-int a;
+    #define tree x x x x \
+                 y y y   \
+                 z z     \
+                 k
+    int a;
 ~~~~~~~~~~~~
 transl-unit
     :entities [
@@ -103,17 +103,17 @@ transl-unit
 
 preprocessor with comments
 ==========================
-/*..*/ #define one /*
-*/
-#define two //
-int a,
-#define three //  \
-    x x x
-b,
-#define four x x x \
-             y y /*
-             x x */
-c;
+    /*..*/ #define one /*
+    */
+    #define two //
+    int a,
+    #define three //  \
+        x x x
+    b,
+    #define four x x x \
+                 y y /*
+                 x x */
+    c;
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 transl-unit
     :entities [
@@ -1627,7 +1627,7 @@ declaration specifiers
     typedef int x;
     int typedef y;
     const int const i;
-    inline int inline i();
+    inline int i();
 ~~~~~~~~~~~~~~~~~~~~~~
 transl-unit
     :entities [
@@ -2362,3 +2362,267 @@ transl-unit
             ]
     ]
 ~~~~~~~~~~~
+
+
+[error recovery]
+
+top level
+=========
+    int a = 1;
+    int b = ;
+    int c = 2;
+    a b c d e f g;
+    int d = 3;
+    static register void a();
+    int e = 4;
+    int b = int c = 0;
+    void foo(*\*) {}
+    int f = 5;
+    enum a_e {}
+    int test() {}
+    int g = 6;
+    struct a_s {}
+    custom_t test() {}
+    int h = 7;
+~~~~~~~~~
+transl-unit
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (a)
+                    :init constant
+                        :value (1)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (c)
+                    :init constant
+                        :value (2)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (d)
+                    :init constant
+                        :value (3)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (e)
+                    :init constant
+                        :value (4)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (f)
+                    :init constant
+                        :value (5)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (g)
+                    :init constant
+                        :value (6)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (h)
+                    :init constant
+                        :value (7)
+            ]
+    ]
+~~~~~~~~~
+
+bad top level
+=============
+    int a =;
+    inline inline foo();
+~~~~~~~~~~~~~
+transl-unit
+    :entities []
+~~~~~~~~~~~~~
+
+block level*
+===========
+{
+    int a = 1;
+    int b = ;
+    int c = 2;
+    a b c d e f g;
+    int d = 3;
+    static register void a();
+    int e = 4;
+    int b = int c = 0;
+    void foo(*\*);
+    int f = 5;
+    enum a_e {}
+    int test();
+    int g = 6;
+    struct a_s {}
+    custom_t test();
+    int h = 7;
+}
+~~~~~~~~~~~
+block
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (a)
+                    :init constant
+                        :value (1)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (c)
+                    :init constant
+                        :value (2)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (d)
+                    :init constant
+                        :value (3)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (e)
+                    :init constant
+                        :value (4)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (f)
+                    :init constant
+                        :value (5)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (g)
+                    :init constant
+                        :value (6)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(int)]
+            :decls [
+                declarator
+                    :name (h)
+                    :init constant
+                        :value (7)
+            ]
+    ]
+~~~~~~~~~~~
+
+bad block level*
+===============
+{
+    int a =;
+    inline inline foo();
+}
+~~~~~~~~~~~~~~~
+block
+    :entities []
+~~~~~~~~~~~~~~~
+
+nested level
+============
+    void *a = ...;
+    void foo() {
+        int a = ...;
+        {
+            int a = ...;
+            {
+                int a = ...;
+                {}
+                int a = ...;
+                {}
+                int a = ...;
+            }
+            int a = ...;
+            {
+                int a = ...;
+            }
+            int a = ...;
+        }
+        int a = ...;
+    }
+~~~~~~~~~~~~
+transl-unit
+    :entities [
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params []
+                :name (foo)
+            :body block
+                :entities [
+                    block
+                        :entities [
+                            block
+                                :entities [
+                                    block
+                                        :entities []
+                                    block
+                                        :entities []
+                                ]
+                            block
+                                :entities []
+                        ]
+                ]
+    ]
+~~~~~~~~~~~~

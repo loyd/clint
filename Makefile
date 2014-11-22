@@ -4,8 +4,7 @@ CFLAGS := -pedantic -Werror -Wall -Wextra -Wshadow -Wundef -Wunreachable-code \
           -Winit-self -Wbad-function-cast -Wstrict-overflow=3 -Wpointer-arith \
           -Wold-style-definition -Wmissing-declarations -Wmissing-prototypes  \
           -Wstrict-prototypes -Wnested-externs -Wwrite-strings -Wwrite-strings\
-          -Wno-unused-parameter -Wno-logical-op-parentheses -Wno-dangling-else\
-          -Wno-switch
+          -Wno-unused-parameter -Wno-logical-op-parentheses -Wno-dangling-else
 
 RM := rm
 

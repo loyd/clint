@@ -3,7 +3,9 @@
  */
 
 #include <assert.h>
+#include <setjmp.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "clint.h"
 #include "tokens.h"
@@ -11,16 +13,60 @@
 
 //#TODO: support for comments.
 //#TODO: preprocessor.
-//#TODO: panic-mode error handling system.
 //#TODO: correct EOB handling.
 
 
 static toknum_t current;
 
 
+////////////////////
+// Recovery mode. //
+////////////////////
+
+static jmp_buf recpoint;
+
+
+static struct {
+    tree_t *trees;
+    void **vectors;
+} orphans = {NULL, NULL};
+
+
+#define foothold() process_orphans(setjmp(recpoint) == 0)
+#define recover() longjmp(recpoint, 1)
+
+static bool process_orphans(bool success)
+{
+    //#TODO: what about saving to extra list?
+    if (!success)
+    {
+        for (unsigned i = 0; i < vec_len(orphans.trees); ++i)
+            free(orphans.trees[i]);
+
+        for (unsigned i = 0; i < vec_len(orphans.vectors); ++i)
+            free_vec(orphans.vectors[i]);
+    }
+
+    vec_len(orphans.trees) = 0;
+    vec_len(orphans.vectors) = 0;
+
+    return success;
+}
+
+
+///////////////////////
+// Common functions. //
+///////////////////////
+
 void init_parser(void)
 {
     assert(!g_tokens);
+
+    if (!orphans.trees)
+    {
+        orphans.trees = new_vec(tree_t, 50);
+        orphans.vectors = new_vec(void *, 15);
+    }
 
     init_lexer();
     g_tokens = new_vec(token_t, 512);
@@ -40,6 +86,9 @@ static enum token_e peek(unsigned lookahead)
     {
         token_t token;
         pull_token(&token);
+
+        if (token.kind == TOK_UNKNOWN)
+            recover();
 
         // Skip preprocessor.
         while (token.kind == PN_HASH)
@@ -82,11 +131,17 @@ static toknum_t accept(enum token_e kind)
 }
 
 
+static void panic(void)
+{
+    //#TODO: error message.
+    recover();
+}
+
+
 static toknum_t expect(enum token_e kind)
 {
-    //#TODO: error handling.
     if (!next_is(kind))
-        assert(0);
+        panic();
 
     return consume();
 }
@@ -95,6 +150,21 @@ static toknum_t expect(enum token_e kind)
 ///////////////////
 // Constructors. //
 ///////////////////
+
+static tree_t *new_tree_vec(size_t init_capacity)
+{
+    tree_t *res = new_vec(tree_t, init_capacity);
+    vec_push(orphans.vectors, res);
+    return res;
+}
+
+
+static toknum_t *new_toknum_vec(size_t init_capacity)
+{
+    return new_vec(toknum_t, init_capacity);
+}
+
+
 
 #define T(type) type, 0, 0
 #define finish(st, tree) finish(st, (void *)tree)
@@ -108,6 +178,7 @@ static tree_t (finish)(toknum_t st, tree_t raw)
     raw->start = st;
     raw->end = current - 1;
 
+    vec_push(orphans.trees, raw);
     return raw;
 }
 
@@ -123,6 +194,7 @@ static tree_t finish_transl_unit(toknum_t st, tree_t *entities)
 
 static tree_t finish_declaration(toknum_t st, tree_t specs, tree_t *decls)
 {
+    assert(specs || (decls && vec_len(decls) > 0));
     struct declaration_s *res = xmalloc(sizeof(*res));
     *res = (struct declaration_s){T(DECLARATION), specs, decls};
     return finish(st, res);
@@ -533,9 +605,10 @@ static bool starts_declaration(bool agressive)
                 case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:
                 case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
                     return true;
-            }
 
-            break;
+                default:
+                    return false;
+            }
 
         // Storage class specifiers.
         case KW_TYPEDEF: case KW_EXTERN: case KW_STATIC: case KW_REGISTER:
@@ -551,9 +624,10 @@ static bool starts_declaration(bool agressive)
         // Function specifier.
         case KW_INLINE:
             return true;
-    }
 
-    return false;
+        default:
+            return false;
+    }
 }
 
 
@@ -622,7 +696,7 @@ static tree_t translation_unit(void);
  */
 static tree_t cast_expression(bool after_sizeof)
 {
-    tree_t left;
+    tree_t left = NULL;
     toknum_t st = current;
 
     switch (peek(1))
@@ -711,6 +785,9 @@ static tree_t cast_expression(bool after_sizeof)
             toknum_t op = consume();
             return finish_unary(st, op, cast_expression(true));
         }
+
+        default:
+            panic();
     }
 
     return postfix_expression_suffixes(left);
@@ -734,6 +811,8 @@ static tree_t cast_expression(bool after_sizeof)
  */
 static tree_t postfix_expression_suffixes(tree_t left)
 {
+    assert(left);
+
     for(;;) switch (peek(1))
     {
         case PN_LSQUARE:
@@ -748,7 +827,7 @@ static tree_t postfix_expression_suffixes(tree_t left)
 
         case PN_LPAREN:
         {
-            tree_t *args = new_vec(tree_t, 2);
+            tree_t *args = new_tree_vec(2);
             consume();
 
             while (!accept(PN_RPAREN))
@@ -897,7 +976,7 @@ static tree_t expression(void)
     if (!next_is(PN_COMMA))
         return expr;
 
-    exprs = new_vec(tree_t, 2);
+    exprs = new_tree_vec(2);
     vec_push(exprs, expr);
 
     while (accept(PN_COMMA))
@@ -934,10 +1013,8 @@ static tree_t declaration(void)
     tree_t specs = declaration_specifiers(false);
 
     if (accept(PN_SEMI))
-    {
-        assert(specs);
-        return finish_declaration(specs->start, specs, NULL);
-    }
+        return specs ? finish_declaration(specs->start, specs, NULL)
+                     : finish_empty(current - 1);
 
     return declaration_inner(specs, init_declarator());
 }
@@ -948,7 +1025,7 @@ static tree_t declaration_inner(tree_t specs, tree_t first_declarator)
     assert(specs || first_declarator);
 
     toknum_t st = (specs ? specs : first_declarator)->start;
-    tree_t *decls = new_vec(tree_t, 1);
+    tree_t *decls = new_tree_vec(1);
     vec_push(decls, first_declarator);
 
     while (accept(PN_COMMA))
@@ -998,6 +1075,9 @@ static tree_t declaration_specifiers(bool agressive)
         // Storage class specifiers.
         case KW_TYPEDEF: case KW_EXTERN: case KW_STATIC: case KW_REGISTER:
         case KW_AUTO:
+            if (storage)
+                panic();
+
             storage = consume();
             break;
 
@@ -1006,7 +1086,7 @@ static tree_t declaration_specifiers(bool agressive)
         case KW_LONG: case KW_FLOAT: case KW_DOUBLE: case KW_SIGNED:
         case KW_UNSIGNED: case KW_BOOL: case KW_COMPLEX:
             if (!names)
-                names = new_vec(toknum_t, 1);
+                names = new_toknum_vec(1);
 
             vec_push(names, consume());
             break;
@@ -1014,7 +1094,7 @@ static tree_t declaration_specifiers(bool agressive)
         // Type qualifiers.
         case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
             if (!quals)
-                quals = new_vec(toknum_t, 1);
+                quals = new_toknum_vec(1);
 
             vec_push(quals, consume());
             break;
@@ -1022,7 +1102,7 @@ static tree_t declaration_specifiers(bool agressive)
         // Struct or union.
         case KW_STRUCT: case KW_UNION:
             if (dirtype)
-                dispose_tree(dirtype);
+                panic();
 
             dirtype = struct_or_union_specifier();
             break;
@@ -1030,13 +1110,16 @@ static tree_t declaration_specifiers(bool agressive)
         // Enumeration.
         case KW_ENUM:
             if (dirtype)
-                dispose_tree(dirtype);
+                panic();
 
             dirtype = enum_specifier();
             break;
 
         // Function specifier.
         case KW_INLINE:
+            if (fnspec)
+                panic();
+
             fnspec = consume();
             break;
 
@@ -1044,20 +1127,18 @@ static tree_t declaration_specifiers(bool agressive)
         case TOK_IDENTIFIER:
             if (!(dirtype || names) && starts_declaration(agressive))
             {
-                names = new_vec(toknum_t, 1);
+                names = new_toknum_vec(1);
                 vec_push(names, consume());
             }
 
             // Fallthrough.
 
         default:
-            if (names)
-            {
-                if (dirtype)
-                    dispose_tree(dirtype);
+            if (names && dirtype)
+                panic();
 
+            if (names)
                 dirtype = finish_id_type(names[0], names);
-            }
 
             if (!(dirtype || storage || quals || fnspec))
                 return NULL;
@@ -1110,7 +1191,7 @@ static tree_t struct_or_union_specifier(void)
     if (!accept(PN_LBRACE))
         return ctor(st, name, NULL);
 
-    members = new_vec(tree_t, 4);
+    members = new_tree_vec(4);
 
     // Members.
     while (!accept(PN_RBRACE))
@@ -1148,7 +1229,7 @@ static tree_t enum_specifier(void)
     }
 
     expect(PN_LBRACE);
-    enumerators = new_vec(tree_t, 4);
+    enumerators = new_tree_vec(4);
 
     while (!accept(PN_RBRACE))
     {
@@ -1181,7 +1262,11 @@ static tree_t init_declarator(void)
     tree_t bitsize = NULL;
 
     if (!next_is(PN_COLON))
+    {
         indtype = declarator_inner(&name);
+        if (!(indtype || name))
+            panic();
+    }
 
     if (accept(PN_EQ))
         init = initializer();
@@ -1205,6 +1290,8 @@ static tree_t init_declarator(void)
  *
  * C99 6.7.5 type-qualifier-list:
  *     [type-qualifier]+
+ *
+ * We accept empty declarator.
  */
 static tree_t declarator_inner(toknum_t *name)
 {
@@ -1225,9 +1312,12 @@ static tree_t declarator_inner(toknum_t *name)
         case PN_LSQUARE:
         case PN_LPAREN:
             return finish_pointer(st, declarator_inner(name), specs);
+
+        default:
+            break;
     }
 
-    // Unexpected abstract declarator.
+    // panic abstract declarator.
     if (name)
         *name = 0;
 
@@ -1267,6 +1357,8 @@ static tree_t declarator_inner(toknum_t *name)
  *     "(" abstract-declarator ")"
  *     [direct-abstract-declarator] array-declarator
  *     [direct-abstract-declarator] "(" [parameter-type-list] ")"
+ *
+ * We accept empty direct declarator.
  */
 static tree_t direct_declarator_inner(toknum_t *name)
 {
@@ -1277,6 +1369,9 @@ static tree_t direct_declarator_inner(toknum_t *name)
     for (;;) switch (peek(1))
     {
         case TOK_IDENTIFIER:
+            if (ident)
+                panic();
+
             ident = consume();
             break;
 
@@ -1322,7 +1417,7 @@ static tree_t direct_declarator_inner(toknum_t *name)
                 break;
             }
 
-            tree_t *params = new_vec(tree_t, 2);
+            tree_t *params = new_tree_vec(2);
 
             while (!accept(PN_RPAREN))
             {
@@ -1376,7 +1471,7 @@ static tree_t direct_declarator_inner(toknum_t *name)
 static tree_t compound_literal(tree_t type)
 {
     toknum_t st = type ? type->start : current;
-    tree_t *members = new_vec(tree_t, 3);
+    tree_t *members = new_tree_vec(3);
     expect(PN_LBRACE);
 
     while (!accept(PN_RBRACE))
@@ -1388,7 +1483,7 @@ static tree_t compound_literal(tree_t type)
         while (next_is(PN_LSQUARE) || next_is(PN_PERIOD))
         {
             if (!designators)
-                designators = new_vec(tree_t, 1);
+                designators = new_tree_vec(1);
 
             if (accept(PN_LSQUARE))
             {
@@ -1459,6 +1554,11 @@ static tree_t declaration_or_fn_definition(void)
     struct declarator_s *declarator;
     bool is_function = false;
 
+    // Only ";".
+    if (!specs && next_is(PN_SEMI))
+        return finish_empty(consume());
+
+    // Only declaration specifiers.
     if (accept(PN_SEMI))
         return finish_declaration(st, specs, NULL);
 
@@ -1477,7 +1577,7 @@ static tree_t declaration_or_fn_definition(void)
         // Old-style declaration list.
         if (!next_is(PN_LBRACE))
         {
-            old_decls = new_vec(tree_t, 2);
+            old_decls = new_tree_vec(2);
             while (!next_is(PN_LBRACE))
                 vec_push(old_decls, declaration());
         }
@@ -1534,9 +1634,10 @@ static tree_t statement(void)
         case KW_BREAK:
         case KW_RETURN:
             return jump_statement();
-    }
 
-    return expression_statement();
+        default:
+            return expression_statement();
+    }
 }
 
 
@@ -1591,12 +1692,19 @@ static tree_t labeled_statement(void)
  */
 static tree_t compound_statement(void)
 {
-    tree_t *entities = new_vec(tree_t, 8);
+    tree_t *entities = new_tree_vec(8);
     toknum_t st = expect(PN_LBRACE);
 
     while (!accept(PN_RBRACE))
-        vec_push(entities, starts_declaration(true) ? declaration()
-                                                    : statement());
+        if (foothold())
+            vec_push(entities, starts_declaration(true) ? declaration()
+                                                        : statement());
+        else
+        {
+            while (!(next_is(PN_SEMI) || next_is(PN_RBRACE)))
+                consume();
+            consume();
+        }
 
     return finish_block(st, entities);
 }
@@ -1772,10 +1880,19 @@ static tree_t jump_statement(void)
 static tree_t translation_unit(void)
 {
     toknum_t st = current;
-    tree_t *entities = new_vec(tree_t, 20);
+    tree_t *entities = new_tree_vec(20);
 
     while (!accept(TOK_EOF))
-        vec_push(entities, declaration_or_fn_definition());
+    {
+        if (foothold())
+            vec_push(entities, declaration_or_fn_definition());
+        else
+        {
+            while (!(next_is(PN_SEMI) || next_is(PN_RBRACE)))
+                consume();
+            consume();
+        }
+    }
 
     return finish_transl_unit(st, entities);
 }

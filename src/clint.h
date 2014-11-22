@@ -58,6 +58,7 @@ extern void *xrealloc(void *ptr, size_t size);
 #define vec_len(vec) (((size_t *)(void *)(vec))[-1])
 #define vec_push(vec, elem)                                                   \
     *(vec_expand_if_need((void **)&(vec)), &vec[vec_len(vec)++]) = elem
+#define vec_pop(vec) vec[--vec_len(vec)]
 
 extern void *(new_vec)(size_t elem_sz, size_t init_capacity);
 extern void vec_expand_if_need(void **vec_ptr);

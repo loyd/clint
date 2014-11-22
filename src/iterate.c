@@ -318,12 +318,12 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
 static const char *stringify_type(enum type_e type)
 {
     static const char *words[] = {
-        "transl-unit", "declaration", "specifiers", "declarator",
+        "transl-unit", "empty", "declaration", "specifiers", "declarator",
         "function-def", "parameter", "type-name", "id-type", "struct", "union",
         "enum", "enumerator", "pointer", "array", "function", "block", "if",
         "switch", "while", "do-while", "for", "goto", "break", "continue",
         "return", "label", "default", "case", "constant", "identifier",
-        "special", "empty", "accessor", "comma", "call", "cast", "conditional",
+        "special", "accessor", "comma", "call", "cast", "conditional",
         "subscript", "unary", "binary", "assignment", "comp-literal",
         "comp-member"
     };

@@ -11,6 +11,7 @@
 enum type_e {
     // Top level.
     TRANSL_UNIT,        // {entities[]}
+    EMPTY,              // {}
 
     // Declarations.
     DECLARATION,        // {specs*, decls*[]}
@@ -53,7 +54,6 @@ enum type_e {
     CONSTANT,           // {#value}
     IDENTIFIER,         // {#value}
     SPECIAL,            // {#value}
-    EMPTY,              // {}
     ACCESSOR,           // {left, #op, #field}
     COMMA,              // {exprs[]}
     CALL,               // {left, args[]}
@@ -83,6 +83,11 @@ typedef struct {
 struct transl_unit_s {
     TREE_FIELDS;
     tree_t *entities;
+};
+
+
+struct empty_s {
+    TREE_FIELDS;
 };
 
 
@@ -289,11 +294,6 @@ struct identifier_s {
 struct special_s {
     TREE_FIELDS;
     toknum_t value;
-};
-
-
-struct empty_s {
-    TREE_FIELDS;
 };
 
 
