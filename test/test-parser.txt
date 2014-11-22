@@ -2626,3 +2626,35 @@ transl-unit
                 ]
     ]
 ~~~~~~~~~~~~
+
+
+[unexpected end of file]
+
+top level
+=========
+    void foo(\
+~~~~~~~~~
+transl-unit
+    :entities []
+~~~~~~~~~
+
+inside expression
+=================
+    void foo() {}
+    void bar() {
+        a /=
+~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params []
+                :name (foo)
+            :body block
+                :entities []
+    ]
+~~~~~~~~~~~~~~~~~

@@ -13,8 +13,7 @@
 
 //#TODO: support for comments.
 //#TODO: preprocessor.
-//#TODO: correct EOB handling.
-
+//#TODO: error messages.
 
 static toknum_t current;
 
@@ -24,6 +23,7 @@ static toknum_t current;
 ////////////////////
 
 static jmp_buf recpoint;
+static jmp_buf eofpoint;
 
 
 static struct {
@@ -32,8 +32,8 @@ static struct {
 } orphans = {NULL, NULL};
 
 
-#define foothold() process_orphans(setjmp(recpoint) == 0)
-#define recover() longjmp(recpoint, 1)
+#define foothold(point) process_orphans(setjmp(point) == 0)
+#define recover(point) longjmp(point, 1)
 
 static bool process_orphans(bool success)
 {
@@ -79,16 +79,16 @@ static enum token_e peek(unsigned lookahead)
 {
     unsigned required = current + lookahead;
 
-    if (current > 1 && g_tokens[vec_len(g_tokens)-1].kind == TOK_EOF)
-        return TOK_EOF;
-
     while (vec_len(g_tokens) < required)
     {
         token_t token;
         pull_token(&token);
 
+        if (token.kind == TOK_EOF)
+            recover(eofpoint);
+
         if (token.kind == TOK_UNKNOWN)
-            recover();
+            recover(recpoint);
 
         // Skip preprocessor.
         while (token.kind == PN_HASH)
@@ -133,8 +133,7 @@ static toknum_t accept(enum token_e kind)
 
 static void panic(void)
 {
-    //#TODO: error message.
-    recover();
+    recover(recpoint);
 }
 
 
@@ -1696,7 +1695,7 @@ static tree_t compound_statement(void)
     toknum_t st = expect(PN_LBRACE);
 
     while (!accept(PN_RBRACE))
-        if (foothold())
+        if (foothold(recpoint))
             vec_push(entities, starts_declaration(true) ? declaration()
                                                         : statement());
         else
@@ -1882,17 +1881,16 @@ static tree_t translation_unit(void)
     toknum_t st = current;
     tree_t *entities = new_tree_vec(20);
 
-    while (!accept(TOK_EOF))
-    {
-        if (foothold())
-            vec_push(entities, declaration_or_fn_definition());
-        else
-        {
-            while (!(next_is(PN_SEMI) || next_is(PN_RBRACE)))
+    if (foothold(eofpoint))
+        for (;;)
+            if (foothold(recpoint))
+                vec_push(entities, declaration_or_fn_definition());
+            else
+            {
+                while (!(next_is(PN_SEMI) || next_is(PN_RBRACE)))
+                    consume();
                 consume();
-            consume();
-        }
-    }
+            }
 
     return finish_transl_unit(st, entities);
 }
