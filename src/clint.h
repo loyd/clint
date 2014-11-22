@@ -41,7 +41,7 @@ extern char *stringify_tokens(void);
 
 
 /*!
- * @name Memory management
+ * @name Memory management.
  * Never return `NULL`.
  */
 //!@{
@@ -58,7 +58,6 @@ extern void *xrealloc(void *ptr, size_t size);
 #define vec_len(vec) (((size_t *)(void *)(vec))[-1])
 #define vec_push(vec, elem)                                                   \
     *(vec_expand_if_need((void **)&(vec)), &vec[vec_len(vec)++]) = elem
-#define vec_pop(vec) vec[--vec_len(vec)]
 
 extern void *(new_vec)(size_t elem_sz, size_t init_capacity);
 extern void vec_expand_if_need(void **vec_ptr);
@@ -67,7 +66,7 @@ extern void free_vec(void *vec);
 
 
 /*!
- * @name Logging
+ * @name Logging.
  */
 //!@{
 extern void resume_warnings(void);
@@ -79,7 +78,7 @@ extern void *warn_at(unsigned line, unsigned column, const char *fmt, ...)
 
 
 /*!
- * @name Lexer
+ * @name Lexer.
  */
 //!@{
 extern void init_lexer(void);
@@ -88,11 +87,21 @@ extern void pull_token(token_t *token);
 
 
 /*!
- * @name Parser
+ * @name Parser.
  */
 //!@{
 extern void init_parser(void);
 extern void parse(void);
+//!@}
+
+
+/*!
+ * @name Tree-walk.
+ */
+//!@{
+typedef bool (*visitor_t)(tree_t tree);
+
+extern void iterate_by_type(enum type_e type, visitor_t cb);
 //!@}
 
 #endif  // __CLINT_H__

@@ -315,6 +315,40 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
 }
 
 
+static struct {
+    enum type_e type;
+    visitor_t cb;
+} iterator;
+
+
+static bool iterate_by_type_before_cb(const char *prop, enum item_e what,
+                                      void *raw)
+{
+    switch (what)
+    {
+        case TOKENS:
+        case TOKEN:
+            return false;
+
+        case NODES:
+            return true;
+
+        case NODE:
+            return ((tree_t)raw)->type == iterator.type ? iterator.cb(raw)
+                                                        : true;
+    }
+}
+
+
+void iterate_by_type(enum type_e type, visitor_t cb)
+{
+    assert(cb);
+    iterator.type = type;
+    iterator.cb = cb;
+    iterate(NULL, NODE, g_tree, iterate_by_type_before_cb, NULL);
+}
+
+
 static const char *stringify_type(enum type_e type)
 {
     static const char *words[] = {
