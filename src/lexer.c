@@ -34,7 +34,7 @@ void init_lexer(void)
     assert(g_data);
     assert(!g_lines);
 
-    g_lines = new_vec(char *, 128);
+    g_lines = new_vec(line_t, 128);
     vec_push(g_lines, ((line_t){g_data, false}));
 
     ch = g_data;
