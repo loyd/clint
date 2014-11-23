@@ -875,6 +875,90 @@ block
     ]
 ~~~~~~~~~~~~~~~
 
+cast expression*
+===============
+{
+    a = (int (*)())b;
+    a = (char *)b;
+    // a = (custom_t (*)())b;
+    a = (custom_t)(custom_t *)(custom_t **)b;
+    a = (custom_t *const)b;
+}
+~~~~~~~~~~~~~~~
+block
+    :entities [
+        assignment
+            :left identifier
+                :value (a)
+            :op (=)
+            :right cast
+                :type_name type-name
+                    :specs specifiers
+                        :dirtype id-type
+                            :names [(int)]
+                    :decl declarator
+                        :indtype function
+                            :indtype pointer
+                            :params []
+                :expr identifier
+                    :value (b)
+        assignment
+            :left identifier
+                :value (a)
+            :op (=)
+            :right cast
+                :type_name type-name
+                    :specs specifiers
+                        :dirtype id-type
+                            :names [(char)]
+                    :decl declarator
+                        :indtype pointer
+                :expr identifier
+                    :value (b)
+        assignment
+            :left identifier
+                :value (a)
+            :op (=)
+            :right cast
+                :type_name type-name
+                    :specs specifiers
+                        :dirtype id-type
+                            :names [(custom_t)]
+                :expr cast
+                    :type_name type-name
+                        :specs specifiers
+                            :dirtype id-type
+                                :names [(custom_t)]
+                        :decl declarator
+                            :indtype pointer
+                    :expr cast
+                        :type_name type-name
+                            :specs specifiers
+                                :dirtype id-type
+                                    :names [(custom_t)]
+                            :decl declarator
+                                :indtype pointer
+                                    :indtype pointer
+                        :expr identifier
+                            :value (b)
+        assignment
+            :left identifier
+                :value (a)
+            :op (=)
+            :right cast
+                :type_name type-name
+                    :specs specifiers
+                        :dirtype id-type
+                            :names [(custom_t)]
+                    :decl declarator
+                        :indtype pointer
+                            :specs specifiers
+                                :quals [(const)]
+                :expr identifier
+                    :value (b)
+    ]
+~~~~~~~~~~~~~~~
+
 unary expression*
 ================
 {
@@ -968,7 +1052,8 @@ block
                 :specs specifiers
                     :dirtype id-type
                         :names [(custom_t)]
-                :decl pointer
+                :decl declarator
+                    :indtype pointer
         unary
             :op (sizeof)
             :expr type-name
@@ -2005,6 +2090,7 @@ declarator
     custom_t i, *volatile restrict const *p[static 10];
     custom_t *i, *const (*restrict (*volatile p)[*])();
     int (*(*f2)(double))(float);
+    // custom_t (*(*f2)(double))(float);
 ~~~~~~~~~~
 transl-unit
     :entities [

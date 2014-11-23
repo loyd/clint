@@ -583,6 +583,8 @@ static tree_t finish_comp_member(toknum_t st, tree_t *designs, tree_t init)
  */
 static bool starts_declaration(bool agressive)
 {
+    //#TODO: refactor me.
+
     switch (peek(1))
     {
         // Custom type or start of expression.
@@ -594,9 +596,18 @@ static bool starts_declaration(bool agressive)
                     return agressive;
 
                 case PN_STAR:
-                    // "X *)" is are always declaration.
-                    if (peek(3) == PN_RPAREN)
-                        return true;
+                    switch (peek(3))
+                    {
+                        // "X *)" is are always declaration.
+                        case PN_RPAREN:
+                        // Sequence of pointers.
+                        case PN_STAR:
+                        case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
+                            return true;
+
+                        default:
+                            return agressive;
+                    }
 
                     return agressive;
 
@@ -1316,7 +1327,7 @@ static tree_t declarator_inner(toknum_t *name)
             break;
     }
 
-    // panic abstract declarator.
+    // Unexpected abstract declarator.
     if (name)
         *name = 0;
 
@@ -1530,7 +1541,11 @@ static tree_t type_name(void)
 {
     toknum_t st = current;
     tree_t specs = declaration_specifiers(true);
-    tree_t decl = declarator_inner(NULL);
+    tree_t indtype, decl = NULL;
+    toknum_t decl_st = current;
+
+    if ((indtype = declarator_inner(NULL)))
+        decl = finish_declarator(decl_st, indtype, 0, NULL, NULL);
 
     return finish_type_name(st, specs, decl);
 }

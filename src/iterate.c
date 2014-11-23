@@ -272,6 +272,13 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
             nodes(args);
             break;
         }
+        case CAST:
+        {
+            struct cast_s *tree = raw;
+            node(type_name);
+            node(expr);
+            break;
+        }
         case SUBSCRIPT:
         {
             struct subscript_s *tree = raw;
@@ -309,8 +316,6 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
             node(init);
             break;
         }
-        default:
-            assert(0);
     }
 }
 
