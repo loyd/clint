@@ -146,7 +146,6 @@ void test_parser(void)
 {
     size_t size;
     char *data;
-    char *pos;
 
     FILE *fp = fopen("test/test-parser.txt", "r");
     assert(fp);

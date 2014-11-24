@@ -267,7 +267,10 @@ int main(int argc, const char *argv[])
         errno = 0;
         ftw(files[i], process_file, 20);
         if (errno)
+        {
             printf("%s: %s.\n", files[i], strerror(errno));
+            retval = MINOR_ERR;
+        }
     }
 
     return retval;
