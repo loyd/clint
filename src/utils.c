@@ -31,11 +31,22 @@ void *xrealloc(void *ptr, size_t size)
 {
     assert(size > 0);
 
-    ptr = realloc(ptr, size);
-    if (!ptr)
+    if (!(ptr = realloc(ptr, size)))
         abort();
 
     return ptr;
+}
+
+
+char *xstrdup(const char *src)
+{
+    assert(src);
+
+    char *dup = strdup(src);
+    if (!dup)
+        abort();
+
+    return dup;
 }
 
 

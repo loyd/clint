@@ -6,6 +6,8 @@ CFLAGS := -pedantic -Werror -Wall -Wextra -Wshadow -Wundef -Wunreachable-code \
           -Wstrict-prototypes -Wnested-externs -Wwrite-strings -Wwrite-strings\
           -Wno-unused-parameter -Wno-logical-op-parentheses -Wno-dangling-else
 
+CFLAGS += -D_XOPEN_SOURCE=500
+
 RM := rm
 
 COMMON := src/state.o src/utils.o src/iterate.o src/lexer.o src/parser.o

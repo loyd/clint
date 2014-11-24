@@ -603,3 +603,20 @@ void pull_token(token_t *token)
     token->end.line = vec_len(g_lines) - 1;
     token->end.column = ch - g_lines[vec_len(g_lines) - 1].start - 1;
 }
+
+
+void tokenize(void)
+{
+    assert(g_lines && vec_len(g_lines) == 1);
+    assert(!g_tokens);
+
+    token_t token;
+    g_tokens = new_vec(token_t, 4096);
+
+    do
+    {
+        pull_token(&token);
+        vec_push(g_tokens, token);
+    }
+    while (token.kind != TOK_EOF);
+}

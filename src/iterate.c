@@ -372,25 +372,33 @@ static const char *stringify_type(enum type_e type)
 }
 
 
-// static const char *stringify_kind(enum token_e kind)
-// {
-//     static const char *words[] = {
-// #define XX(kind, word) word,
-//     TOK_MAP(XX)
-// #undef XX
-//     };
+static const char *stringify_kind(enum token_e kind)
+{
+    static const char *words[] = {
+#define XX(kind, word) word,
+    TOK_MAP(XX)
+#undef XX
+    };
 
-//     assert(0 <= kind && kind < sizeof(words)/sizeof(*words));
-//     return words[kind];
-// }
+    assert(0 <= kind && kind < sizeof(words)/sizeof(*words));
+    return words[kind];
+}
 
 
-#define STR_INIT_SIZE 512
+#define STR_INIT_SIZE 8192
 
 static char *str = NULL;
 static int str_size;
 static int str_len;
 static int indent;
+
+
+static void str_init(void)
+{
+    str = xmalloc(STR_INIT_SIZE);
+    str_size = STR_INIT_SIZE;
+    str_len = 0;
+}
 
 
 __attribute__((format(printf, 1, 2)))
@@ -481,24 +489,30 @@ static void stringify_after_cb(const char *prop, enum item_e what, void *raw)
 
 char *stringify_tree(void)
 {
-    char *output;
+    assert(g_tree);
+    str_init();
 
     indent = 0;
-
-    if (!str)
-    {
-        str = xmalloc(STR_INIT_SIZE);
-        str_size = STR_INIT_SIZE;
-        str_len = 0;
-    }
-
     iterate(NULL, NODE, g_tree, stringify_before_cb, stringify_after_cb);
 
-    output = str;
-    str = NULL;
-
-    return output;
+    return str;
 }
+
+
+char *stringify_tokens(void)
+{
+    assert(g_tokens);
+    str_init();
+
+    for (unsigned i = 1; i < vec_len(g_tokens); ++i)
+    {
+        const char *kind = stringify_kind(g_tokens[i].kind);
+        push("%s ", kind);
+    }
+
+    return str;
+}
+
 
 
 static void dispose_cb(const char *prop, enum item_e what, void *raw)

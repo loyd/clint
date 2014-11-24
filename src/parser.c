@@ -69,7 +69,7 @@ void init_parser(void)
     }
 
     init_lexer();
-    g_tokens = new_vec(token_t, 512);
+    g_tokens = new_vec(token_t, 4096);
     ++vec_len(g_tokens);  // 1-indexed.
     current = 1;
 }

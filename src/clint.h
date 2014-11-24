@@ -32,7 +32,6 @@ extern token_t  *g_tokens;      //!< 1-indexed consumed tokens.
 //!@}
 
 
-extern void load_file(const char *filename);
 extern void reset_state(void);
 
 extern void dispose_tree(tree_t tree);
@@ -47,6 +46,7 @@ extern char *stringify_tokens(void);
 //!@{
 extern void *xmalloc(size_t size);
 extern void *xrealloc(void *ptr, size_t size);
+extern char *xstrdup(const char *src);
 //!@}
 
 
@@ -83,6 +83,7 @@ extern void *warn_at(unsigned line, unsigned column, const char *fmt, ...)
 //!@{
 extern void init_lexer(void);
 extern void pull_token(token_t *token);
+extern void tokenize(void);
 //!@}
 
 

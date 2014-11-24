@@ -15,13 +15,6 @@ tree_t g_tree = NULL;
 token_t *g_tokens = NULL;
 
 
-void load_file(const char *filename)
-{
-    assert(filename && filename[0]);
-    assert(0 && "Not implemented!");
-}
-
-
 void reset_state(void)
 {
     free(g_filename);
