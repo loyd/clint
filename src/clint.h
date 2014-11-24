@@ -10,6 +10,8 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <json.h>
+
 #include "tokens.h"
 #include "tree.h"
 
@@ -24,11 +26,12 @@ typedef struct {
  * Global state.
  */
 //!@{
-extern char     *g_filename;    //!< Name of the current file.
-extern char     *g_data;        //!< Content of the current file.
-extern line_t   *g_lines;       //!< Pointers to starts of line.
-extern tree_t    g_tree;        //!< Tree of the current file.
-extern token_t  *g_tokens;      //!< 1-indexed consumed tokens.
+extern char       *g_filename;  //!< Name of the current file.
+extern char       *g_data;      //!< Content of the current file.
+extern line_t     *g_lines;     //!< Pointers to starts of line.
+extern tree_t      g_tree;      //!< Tree of the current file.
+extern token_t    *g_tokens;    //!< 1-indexed consumed tokens.
+extern json_value *g_config;    //!< Root of the config file.
 //!@}
 
 

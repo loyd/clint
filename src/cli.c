@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <json.h>
+
 #include "clint.h"
 
 
@@ -99,7 +101,7 @@ static struct option_s *find_abbrev(char abbrev)
 
 static const char *config = ".clintrc";
 
-static enum {TOKENIZE, PARSING, NORMAL} action = NORMAL;
+static enum {TOKENIZE, PARSE, CHECK} action = CHECK;
 
 static void process_option(struct option_s *opt, const char *arg)
 {
@@ -120,7 +122,7 @@ static void process_option(struct option_s *opt, const char *arg)
             break;
 
         case CMD_SHOW_TREE:
-            action = PARSING;
+            action = PARSE;
             break;
 
         default:
@@ -138,12 +140,11 @@ static bool accept(const char *fpath)
 }
 
 
+#define CHECK(x) if (!(x)) goto error
+
 static int process_file(const char *fpath, const struct stat *sb, int type)
 {
     //#TODO: what about skipping `.svn`, `.git` etc.?
-
-#define CHECK(x) if (!(x)) goto error
-
     FILE *fp;
     int size;
 
@@ -175,7 +176,7 @@ static int process_file(const char *fpath, const struct stat *sb, int type)
         printf("%s: (%lu tokens)\n%s", fpath, vec_len(g_tokens), str);
         free(str);
     }
-    else if (action == PARSING)
+    else if (action == PARSE)
     {
         init_parser();
         parse();
@@ -192,7 +193,7 @@ static int process_file(const char *fpath, const struct stat *sb, int type)
     return 0;
 
 error:
-    fprintf(stderr, "%s: %s\n", fpath, strerror(errno));
+    fprintf(stderr, "%s: %s.\n", fpath, strerror(errno));
     retval = MINOR_ERR;
     reset_state();
     errno = 0;
@@ -200,10 +201,52 @@ error:
 }
 
 
+static void load_config(void)
+{
+    FILE *fp;
+    int size;
+    char *data;
+    char errbuf[512];
+
+    CHECK(fp = fopen(config, "r"));
+
+    // Determine the size.
+    CHECK(!fseek(fp, 0, SEEK_END));
+    CHECK((size = ftell(fp)) >= 0);
+    CHECK(!fseek(fp, 0, SEEK_SET));
+
+    // Read all content from the file.
+    data = xmalloc(size + 1);
+    data[size] = '\0';
+
+    CHECK(fread(data, 1, size, fp) == (size_t)size);
+    CHECK(fclose(fp) != EOF);
+
+    // Parse file as json.
+    g_config = json_parse_ex(&(json_settings){
+        .settings = json_enable_comments
+    }, data, size, errbuf);
+
+    if (!g_config)
+    {
+        printf("Error while parsing config while: %s.\n", errbuf);
+        exit(MAJOR_ERR);
+    }
+
+    free(data);
+    return;
+
+error:
+    fprintf(stderr, "%s: %s.\n", config, strerror(errno));
+    exit(MAJOR_ERR);
+}
+
+
 int main(int argc, const char *argv[])
 {
     const char **files = new_vec(char *, 10);
 
+    // Parse arguments.
     for (int i = 1; i < argc; ++i)
     {
         struct option_s *opt;
@@ -256,9 +299,16 @@ int main(int argc, const char *argv[])
             }
 
             process_option(opt, opt->argname ? argv[++i] : NULL);
+
+            if (opt->argname)
+                break;
         }
     }
 
+    if (action == CHECK)
+        load_config();
+
+    // Process files.
     if (vec_len(files) == 0)
         vec_push(files, ".");
 

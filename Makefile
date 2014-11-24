@@ -8,7 +8,7 @@ CFLAGS := -pedantic -Werror -Wall -Wextra -Wshadow -Wundef -Wunreachable-code \
           -Wno-missing-field-initializers
 
 CFLAGS += -D_XOPEN_SOURCE=500
-CFLAGS += -I./deps/json-parser
+CFLAGS += -Ideps/json-parser
 CFLAGS += -iquotesrc
 
 RM := rm

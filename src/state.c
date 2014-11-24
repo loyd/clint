@@ -13,6 +13,7 @@ char *g_data = NULL;
 line_t *g_lines = NULL;
 tree_t g_tree = NULL;
 token_t *g_tokens = NULL;
+json_value *g_config = NULL;
 
 
 void reset_state(void)
