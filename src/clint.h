@@ -35,6 +35,24 @@ extern json_value *g_config;    //!< Root of the config file.
 //!@}
 
 
+/*!
+ * @name Rules runner.
+ */
+//!@{
+struct rule_s {
+    const char *name;
+    void (*configure)(json_value *config);
+    void (*check)(void);
+};
+
+#define REGISTER_RULE(name, configure, check)                                 \
+    struct rule_s name ## _rule = {#name, configure, check}
+
+extern bool configure_rules(void);
+extern bool check_rules(void);
+extern json_value *json_get(json_value *obj, const char *key, json_type type);
+//!@}
+
 extern void reset_state(void);
 extern void dispose_tree(tree_t tree);
 
@@ -117,7 +135,8 @@ extern void parse(void);
 //!@{
 typedef bool (*visitor_t)(tree_t tree);
 
-extern void iterate_by_type(enum type_e type, visitor_t cb);
+#define iterate_by_type(type, cb) iterate_by_type(type, (visitor_t)cb)
+extern void (iterate_by_type)(enum type_e type, visitor_t cb);
 //!@}
 
 #endif  // __CLINT_H__

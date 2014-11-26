@@ -17,7 +17,7 @@ enum type_e {
     DECLARATION,        // {specs*, decls*[]}
     SPECIFIERS,         // {#storage*, #fnspec*, #quals*[], dirtype*}
     DECLARATOR,         // {indtype*, #name*, init*, bitsize*}
-    FUNCTION_DEF,       // {specs*, decl, old_decls*[], body}
+    FUNCTION_DEF,       // {specs, decl, old_decls*[], body}
     PARAMETER,          // {specs*, decl*} (decl can be ellipsis)
     TYPE_NAME,          // {specs*, decl*} (abstract decl)
 
@@ -70,10 +70,11 @@ enum type_e {
 
 #define TREE_FIELDS                                                           \
     enum type_e type;                                                         \
+    struct tree_s *parent;                                                    \
     toknum_t start, end
 
 
-typedef struct {
+typedef struct tree_s {
     TREE_FIELDS;
 } *tree_t;
 

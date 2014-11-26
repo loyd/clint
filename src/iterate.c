@@ -21,13 +21,19 @@ typedef void (*after_t)(const char *prop, enum item_e what, void *raw);
 
 static void iterate_node_inner(void *raw, before_t before, after_t after);
 
-static void iterate(const char *prop, enum item_e what, void *raw,
-                    before_t before, after_t after)
+static void iterate(tree_t parent, const char *prop, enum item_e what,
+                    void *raw, before_t before, after_t after)
 {
     assert(raw);
 
-    if (before && !before(prop, what, raw))
-        return;
+    if (before)
+    {
+        if (what == NODE && !((tree_t)raw)->parent)
+            ((tree_t)raw)->parent = parent;
+
+        if (!before(prop, what, raw))
+            return;
+    }
 
     switch (what)
     {
@@ -40,12 +46,13 @@ static void iterate(const char *prop, enum item_e what, void *raw,
 
         case TOKENS:
             for (unsigned i = 0; i < vec_len(raw); ++i)
-                iterate(NULL, TOKEN, &((toknum_t *)raw)[i], before, after);
+                iterate(NULL, NULL, TOKEN, &((toknum_t *)raw)[i],
+                        before, after);
             break;
 
         case NODES:
             for (unsigned i = 0; i < vec_len(raw); ++i)
-                iterate(NULL, NODE, ((tree_t *)raw)[i], before, after);
+                iterate(parent, NULL, NODE, ((tree_t *)raw)[i], before, after);
             break;
 
         default:
@@ -62,11 +69,11 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
 
 #define token(prop)                                                           \
     if (tree->prop)                                                           \
-        iterate(#prop, TOKEN, &tree->prop, before, after)
+        iterate(NULL, #prop, TOKEN, &tree->prop, before, after)
 
 #define ITERATE(prop, what)                                                   \
     if (tree->prop)                                                           \
-        iterate(#prop, what, tree->prop, before, after)
+        iterate((tree_t)tree, #prop, what, tree->prop, before, after)
 
 #define tokens(prop)    ITERATE(prop, TOKENS)
 #define node(prop)      ITERATE(prop, NODE)
@@ -345,12 +352,12 @@ static bool iterate_by_type_before_cb(const char *prop, enum item_e what,
 }
 
 
-void iterate_by_type(enum type_e type, visitor_t cb)
+void (iterate_by_type)(enum type_e type, visitor_t cb)
 {
     assert(cb);
     iterator.type = type;
     iterator.cb = cb;
-    iterate(NULL, NODE, g_tree, iterate_by_type_before_cb, NULL);
+    iterate(NULL, NULL, NODE, g_tree, iterate_by_type_before_cb, NULL);
 }
 
 
@@ -456,7 +463,7 @@ static bool stringify_before_cb(const char *prop, enum item_e what, void *raw)
         case TOKEN:
         {
             token_t *tok = &g_tokens[*(toknum_t *)raw];
-            int len = tok->end.pos - tok->start.pos;
+            int len = tok->end.pos - tok->start.pos + 1;
             push("(%.*s)", len, tok->start.pos);
             break;
         }
@@ -493,7 +500,7 @@ char *stringify_tree(void)
     str_init();
 
     indent = 0;
-    iterate(NULL, NODE, g_tree, stringify_before_cb, stringify_after_cb);
+    iterate(NULL, NULL, NODE, g_tree, stringify_before_cb, stringify_after_cb);
 
     return str;
 }
@@ -526,5 +533,5 @@ static void dispose_cb(const char *prop, enum item_e what, void *raw)
 
 void dispose_tree(tree_t tree)
 {
-    iterate(NULL, NODE, tree, NULL, dispose_cb);
+    iterate(NULL, NULL, NODE, tree, NULL, dispose_cb);
 }

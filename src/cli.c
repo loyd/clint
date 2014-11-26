@@ -177,7 +177,7 @@ static int process_file(const char *fpath, const struct stat *sb, int type)
         init_lexer();
         tokenize();
         char *str = stringify_tokens();
-        printf("%s: (%lu tokens)\n%s", fpath, vec_len(g_tokens), str);
+        printf("%s: (%lu tokens)\n%s\n", fpath, vec_len(g_tokens), str);
         free(str);
     }
     else if (action == PARSE)
@@ -185,13 +185,19 @@ static int process_file(const char *fpath, const struct stat *sb, int type)
         init_parser();
         parse();
         char *str = stringify_tree();
-        printf("%s:\n%s", fpath, str);
+        printf("%s:\n%s\n", fpath, str);
         free(str);
     }
     else
-        assert(0 && "Not implemented.");
+    {
+        assert(action == CHECK);
+        init_parser();
+        parse();
+        if (!check_rules())
+            retval = IMPERFECT;
+    }
 
-    printf("\n");
+    printf("Done processing %s.\n", fpath);
     reset_state();
     errno = 0;
     return 0;
@@ -236,6 +242,10 @@ static void load_config(void)
         printf("Error while parsing config while: %s.\n", errbuf);
         exit(MAJOR_ERR);
     }
+
+    // Configure all rules.
+    if (!configure_rules())
+        exit(MAJOR_ERR);
 
     free(data);
     return;

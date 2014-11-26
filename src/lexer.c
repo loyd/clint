@@ -602,7 +602,7 @@ void pull_token(token_t *token)
     if (!success)
         token->kind = TOK_UNKNOWN;
 
-    token->end.pos = ch;
+    token->end.pos = ch - 1;
     token->end.line = vec_len(g_lines) - 1;
     token->end.column = ch - g_lines[vec_len(g_lines) - 1].start - 1;
 }

@@ -16,7 +16,7 @@ RM := rm
 COMMON := src/state.o src/utils.o src/iterate.o src/lexer.o src/parser.o
 
 
-clint: $(COMMON) deps/json-parser/json.c rules/*.c src/cli.c
+clint: $(COMMON) deps/json-parser/json.c rules/*.c src/rules.c src/cli.c
 	$(CC) -lm $(CFLAGS) $^ -o $@
 
 run-test: $(COMMON) test/*

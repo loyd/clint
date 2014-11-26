@@ -74,6 +74,7 @@ void init_parser(void)
 
     init_lexer();
     g_tokens = new_vec(token_t, 4096);
+    memset(g_tokens, 0, sizeof(token_t));
     ++vec_len(g_tokens);  // 1-indexed.
     current = 1;
 }
@@ -171,7 +172,7 @@ static toknum_t *new_toknum_vec(size_t init_capacity)
 
 
 
-#define T(type) type, 0, 0
+#define T(type) type, NULL, 0, 0
 #define finish(st, tree) finish(st, (void *)tree)
 
 
@@ -230,7 +231,7 @@ static tree_t finish_declarator(toknum_t st, tree_t indtype, toknum_t name,
 static tree_t finish_function_def(toknum_t st, tree_t specs, tree_t decl,
                                   tree_t *old_decls, tree_t body)
 {
-    assert(decl && body);
+    assert(specs && decl && body);
     struct function_def_s *res = xmalloc(sizeof(*res));
     *res = (struct function_def_s){
         T(FUNCTION_DEF), specs, decl, old_decls, body
