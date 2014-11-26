@@ -8,10 +8,10 @@
 
 int main(void)
 {
-  pause_warnings();
+    set_log_level(LOG_SILENCE);
 
-  test_lexer();
-  test_parser();
+    test_lexer();
+    test_parser();
 
-  return 0;
+    return 0;
 }

@@ -108,14 +108,14 @@ void free_vec(void *vec)
 
 static inline unsigned count_signs(unsigned num)
 {
-    assert(num >= 0);
     unsigned res = 0;
 
-    while (num)
+    do
     {
         ++res;
         num /= 10;
     }
+    while (num);
 
     return res;
 }
@@ -139,32 +139,36 @@ static inline unsigned get_line_len(unsigned line)
 #define FILENAME_STYLE  "\x1b[32;1m"
 #define NORMAL_STYLE    "\x1b[0m"
 
-static bool flowing = true;
-void resume_warnings(void) { flowing = true; }
-void pause_warnings(void) { flowing = false; }
+static enum log_level_e log_level = LOG_WARNING;
 
-
-void *warn_at(unsigned line, unsigned column, const char *format, ...)
+void set_log_level(enum log_level_e level)
 {
+    log_level = level;
+}
+
+
+void *log_at(enum log_level_e level, location_t *loc, const char *format, ...)
+{
+    assert(level > LOG_SILENCE);
     assert(format);
-    assert(line < vec_len(g_lines));
+    assert(loc->line < vec_len(g_lines));
 
-    unsigned line_len = get_line_len(line);
-    assert(column <= line_len);
-
-    if (!flowing)
+    if (log_level < level)
         return NULL;
 
+    unsigned line_len = get_line_len(loc->line);
+    assert(loc->column <= line_len);
+
     va_list arg;
-    unsigned line_from = line-2;
-    unsigned line_to = line+2;
+    unsigned line_from = loc->line > 2 ? loc->line - 2 : 0;
+    unsigned line_to = loc->line+2;
 
     if (line_to >= vec_len(g_lines))
         line_to = vec_len(g_lines) - 1;
 
     unsigned line_width = count_signs(line_to);
 
-    char pointer[column + line_width + 7];
+    char pointer[2 + line_width + 3 + loc->column + 2];
     memset(pointer, '-', sizeof(pointer) - 2);
     pointer[sizeof(pointer) - 2] = '^';
     pointer[sizeof(pointer) - 1] = '\0';
@@ -183,7 +187,7 @@ void *warn_at(unsigned line, unsigned column, const char *format, ...)
     {
         fprintf(stderr, "  %*d | %.*s\n", line_width, i+1, get_line_len(i),
                                           g_lines[i].start);
-        if (i == line)
+        if (i == loc->line)
             fprintf(stderr, "%s\n", pointer);
     }
 

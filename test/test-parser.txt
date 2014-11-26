@@ -86,6 +86,9 @@ preprocessor
                  z z     \
                  k
     int a;
+
+    #define four x x \
+                 y
 ~~~~~~~~~~~~
 transl-unit
     :entities [
@@ -2573,6 +2576,8 @@ block level*
     int g = 6;
     struct a_s {}
     custom_t test();
+    if a);
+    a->10;
     int h = 7;
 }
 ~~~~~~~~~~~
@@ -2744,3 +2749,11 @@ transl-unit
                 :entities []
     ]
 ~~~~~~~~~~~~~~~~~
+
+in preprocessor
+===============
+    #define one() x \
+~~~~~~~~~~~~~~~
+transl-unit
+    :entities []
+~~~~~~~~~~~~~~~

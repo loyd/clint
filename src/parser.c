@@ -6,6 +6,7 @@
 #include <setjmp.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "clint.h"
 #include "tokens.h"
@@ -13,9 +14,12 @@
 
 //#TODO: support for comments.
 //#TODO: preprocessor.
-//#TODO: error messages.
 
 static toknum_t current;
+static bool allow_eof;
+
+#define error(toknum, ...) error_at(&g_tokens[toknum].start, __VA_ARGS__)
+#define panic(...) (error(current, __VA_ARGS__), recover(recpoint))
 
 
 ////////////////////
@@ -77,6 +81,7 @@ void init_parser(void)
 
 static enum token_e peek(unsigned lookahead)
 {
+    assert(current < 2 || g_tokens[current-1].kind != TOK_EOF);
     unsigned required = current + lookahead;
 
     while (vec_len(g_tokens) < required)
@@ -84,25 +89,32 @@ static enum token_e peek(unsigned lookahead)
         token_t token;
         pull_token(&token);
 
-        if (token.kind == TOK_EOF)
-            recover(eofpoint);
-
         if (token.kind == TOK_UNKNOWN)
             recover(recpoint);
 
         // Skip preprocessor.
         while (token.kind == PN_HASH)
         {
-            int line = token.start.line;
+            unsigned line = token.start.line;
             do
                 pull_token(&token);
-            while (token.start.line == line ||
-                   g_lines[token.start.line-1].dangling);
+            while (token.kind != TOK_EOF &&
+                   (token.start.line == line ||
+                    g_lines[token.start.line-1].dangling));
         }
 
         // Skip comments.
         if (token.kind != TOK_COMMENT)
             vec_push(g_tokens, token);
+
+        if (token.kind == TOK_EOF)
+            if (allow_eof)
+                return TOK_EOF;
+            else
+            {
+                error(vec_len(g_tokens) - 1, "Unexpected EOF");
+                recover(eofpoint);
+            }
     }
 
     return g_tokens[required - 1].kind;
@@ -131,16 +143,10 @@ static toknum_t accept(enum token_e kind)
 }
 
 
-static void panic(void)
-{
-    recover(recpoint);
-}
-
-
 static toknum_t expect(enum token_e kind)
 {
     if (!next_is(kind))
-        panic();
+        panic("Expected \"%s\"", stringify_kind(kind));
 
     return consume();
 }
@@ -797,7 +803,7 @@ static tree_t cast_expression(bool after_sizeof)
         }
 
         default:
-            panic();
+            panic("Expected expression");
     }
 
     return postfix_expression_suffixes(left);
@@ -1086,7 +1092,7 @@ static tree_t declaration_specifiers(bool agressive)
         case KW_TYPEDEF: case KW_EXTERN: case KW_STATIC: case KW_REGISTER:
         case KW_AUTO:
             if (storage)
-                panic();
+                panic("Excess class specifier");
 
             storage = consume();
             break;
@@ -1095,6 +1101,9 @@ static tree_t declaration_specifiers(bool agressive)
         case KW_VOID: case KW_CHAR: case KW_SHORT: case KW_INT:
         case KW_LONG: case KW_FLOAT: case KW_DOUBLE: case KW_SIGNED:
         case KW_UNSIGNED: case KW_BOOL: case KW_COMPLEX:
+            if (dirtype)
+                panic("Excess type specifier");
+
             if (!names)
                 names = new_toknum_vec(1);
 
@@ -1111,16 +1120,16 @@ static tree_t declaration_specifiers(bool agressive)
 
         // Struct or union.
         case KW_STRUCT: case KW_UNION:
-            if (dirtype)
-                panic();
+            if (dirtype || names)
+                panic("Excess direct type");
 
             dirtype = struct_or_union_specifier();
             break;
 
         // Enumeration.
         case KW_ENUM:
-            if (dirtype)
-                panic();
+            if (dirtype || names)
+                panic("Excess direct type");
 
             dirtype = enum_specifier();
             break;
@@ -1128,7 +1137,7 @@ static tree_t declaration_specifiers(bool agressive)
         // Function specifier.
         case KW_INLINE:
             if (fnspec)
-                panic();
+                panic("Excess inline specifier");
 
             fnspec = consume();
             break;
@@ -1144,9 +1153,6 @@ static tree_t declaration_specifiers(bool agressive)
             // Fallthrough.
 
         default:
-            if (names && dirtype)
-                panic();
-
             if (names)
                 dirtype = finish_id_type(names[0], names);
 
@@ -1275,7 +1281,7 @@ static tree_t init_declarator(void)
     {
         indtype = declarator_inner(&name);
         if (!(indtype || name))
-            panic();
+            panic("Empty declarator");
     }
 
     if (accept(PN_EQ))
@@ -1306,33 +1312,14 @@ static tree_t init_declarator(void)
 static tree_t declarator_inner(toknum_t *name)
 {
     toknum_t st = current;
-    tree_t specs;
 
-    if (!accept(PN_STAR))
-        return direct_declarator_inner(name);
-
-    specs = declaration_specifiers(false);
-
-    switch (peek(1))
+    if (accept(PN_STAR))
     {
-        // Nested pointer.
-        case PN_STAR:
-        // Signs of (abstract) direct declarator.
-        case TOK_IDENTIFIER:
-        case PN_LSQUARE:
-        case PN_LPAREN:
-            return finish_pointer(st, declarator_inner(name), specs);
-
-        default:
-            break;
+        tree_t specs = declaration_specifiers(false);
+        return finish_pointer(st, declarator_inner(name), specs);
     }
 
-    // Unexpected abstract declarator.
-    if (name)
-        *name = 0;
-
-    // Only pointer within abstract declarator.
-    return finish_pointer(st, NULL, specs);
+    return direct_declarator_inner(name);
 }
 
 
@@ -1380,7 +1367,7 @@ static tree_t direct_declarator_inner(toknum_t *name)
     {
         case TOK_IDENTIFIER:
             if (ident)
-                panic();
+                panic("Excess declarator name");
 
             ident = consume();
             break;
@@ -1898,6 +1885,12 @@ static tree_t translation_unit(void)
 
     if (foothold(eofpoint))
         for (;;)
+        {
+            allow_eof = true;
+            if (peek(1) == TOK_EOF)
+                break;
+            allow_eof = false;
+
             if (foothold(recpoint))
                 vec_push(entities, declaration_or_fn_definition());
             else
@@ -1906,6 +1899,7 @@ static tree_t translation_unit(void)
                     consume();
                 consume();
             }
+        }
 
     return finish_transl_unit(st, entities);
 }

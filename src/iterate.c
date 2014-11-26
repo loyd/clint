@@ -354,7 +354,7 @@ void iterate_by_type(enum type_e type, visitor_t cb)
 }
 
 
-static const char *stringify_type(enum type_e type)
+const char *stringify_type(enum type_e type)
 {
     static const char *words[] = {
         "transl-unit", "empty", "declaration", "specifiers", "declarator",
@@ -372,7 +372,7 @@ static const char *stringify_type(enum type_e type)
 }
 
 
-static const char *stringify_kind(enum token_e kind)
+const char *stringify_kind(enum token_e kind)
 {
     static const char *words[] = {
 #define XX(kind, word) word,
@@ -457,7 +457,7 @@ static bool stringify_before_cb(const char *prop, enum item_e what, void *raw)
         {
             token_t *tok = &g_tokens[*(toknum_t *)raw];
             int len = tok->end.pos - tok->start.pos;
-            push("(%.*s)", len, g_data + tok->start.pos);
+            push("(%.*s)", len, tok->start.pos);
             break;
         }
 

@@ -133,13 +133,15 @@ enum token_e {
 
 
 typedef struct {
-    enum token_e kind;
+    char *pos;
+    unsigned line;
+    unsigned column;
+} location_t;
 
-    struct {
-        int pos;
-        int line;
-        int column;
-    } start, end;
+
+typedef struct {
+    enum token_e kind;
+    location_t start, end;
 } token_t;
 
 

@@ -117,6 +117,10 @@ static void process_option(struct option_s *opt, const char *arg)
             config = arg;
             break;
 
+        case CMD_VERBOSE:
+            set_log_level(LOG_ERROR);
+            break;
+
         case CMD_TOKENIZE:
             action = TOKENIZE;
             break;

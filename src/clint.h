@@ -36,8 +36,12 @@ extern json_value *g_config;    //!< Root of the config file.
 
 
 extern void reset_state(void);
-
 extern void dispose_tree(tree_t tree);
+
+
+const char *stringify_type(enum type_e type);
+const char *stringify_kind(enum token_e kind);
+
 extern char *stringify_tree(void);
 extern char *stringify_tokens(void);
 
@@ -72,11 +76,19 @@ extern void free_vec(void *vec);
  * @name Logging.
  */
 //!@{
-extern void resume_warnings(void);
-extern void pause_warnings(void);
+enum log_level_e {
+    LOG_SILENCE,
+    LOG_WARNING,
+    LOG_ERROR
+};
 
-extern void *warn_at(unsigned line, unsigned column, const char *fmt, ...)
-  __attribute__((format(printf, 3, 4)));
+extern void set_log_level(enum log_level_e level);
+
+extern void *log_at(enum log_level_e level, location_t *loc, const char *fmt,
+                    ...) __attribute__((format(printf, 3, 4)));
+
+#define warn_at(...)  log_at(LOG_WARNING, __VA_ARGS__)
+#define error_at(...) log_at(LOG_ERROR, __VA_ARGS__)
 //!@}
 
 

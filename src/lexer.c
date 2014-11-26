@@ -24,9 +24,12 @@ static bool parsing_pp_directive;
 //!@}
 
 
-#define warn(...)                                                             \
-    warn_at(vec_len(g_lines) - 1, ch - g_lines[vec_len(g_lines) - 1].start,   \
-            __VA_ARGS__)
+#define error(...)                                                            \
+    error_at(&(location_t){                                                   \
+        .pos = ch,                                                            \
+        .line = vec_len(g_lines) - 1,                                         \
+        .column = ch - g_lines[vec_len(g_lines) - 1].start                    \
+    }, __VA_ARGS__)
 
 
 void init_lexer(void)
@@ -233,8 +236,8 @@ static bool char_const(token_t *token)
     }
 
     if (*ch != '\'')
-        return warn("Unexpected %s while parsing character constant",
-                    *ch ? "newline" : "EOB");
+        return error("Unexpected %s while parsing character constant",
+                     *ch ? "newline" : "EOF");
 
     eat(1);
 
@@ -261,8 +264,8 @@ static bool string_literal(token_t *token)
     }
 
     if (*ch != '"')
-        return warn("Unexpected %s while parsing string literal",
-                    *ch ? "newline" : "EOB");
+        return error("Unexpected %s while parsing string literal",
+                     *ch ? "newline" : "EOF");
 
     eat(1);
 
@@ -443,7 +446,7 @@ static bool comment(token_t *token)
             eat(1);
 
         if (!*ch)
-            return warn("Unexpected EOB while parsing comment");
+            return error("Unexpected EOF while parsing comment");
 
         eat(1);
     }
@@ -471,8 +474,8 @@ static bool header_name(token_t *token)
     while (*ch && *ch != '\n' && *ch != expected);
 
     if (*ch != expected)
-        return warn("Unexpected %s while parsing header name",
-                    *ch ? "newline" : "EOB");
+        return error("Unexpected %s while parsing header name",
+                     *ch ? "newline" : "EOF");
 
     eat(1);
 
@@ -488,13 +491,13 @@ void pull_token(token_t *token)
     bool success;
     skip_spaces();
 
-    token->start.pos = ch - g_data;
+    token->start.pos = ch;
     token->start.line = vec_len(g_lines) - 1;
     token->start.column = ch - g_lines[vec_len(g_lines) - 1].start;
 
     switch (*ch)
     {
-        // EOB.
+        // EOF.
         case '\0':
             //#TODO: add skipping of suddenly '\0'.
             token->kind = TOK_EOF;
@@ -599,7 +602,7 @@ void pull_token(token_t *token)
     if (!success)
         token->kind = TOK_UNKNOWN;
 
-    token->end.pos = ch - g_data;
+    token->end.pos = ch;
     token->end.line = vec_len(g_lines) - 1;
     token->end.column = ch - g_lines[vec_len(g_lines) - 1].start - 1;
 }
