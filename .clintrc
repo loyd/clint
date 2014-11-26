@@ -33,7 +33,9 @@
         "before-semicolon": false,
         "after-semicolon": true,
 
+        "require-block-on-newline": true,
         "newline-before-block": true,
+        "newline-before-else": true,
         "newline-before-fn-body": true,
         "empty-around-fn-def": true,
 
