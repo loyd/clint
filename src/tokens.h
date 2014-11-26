@@ -133,9 +133,9 @@ enum token_e {
 
 
 typedef struct {
-    char *pos;
     unsigned line;
     unsigned column;
+    char *pos;
 } location_t;
 
 

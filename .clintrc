@@ -18,5 +18,31 @@
         "maximum-length": 80,
         "disallow-trailing-space": true,
         "require-newline-at-eof": true
+    },
+
+    "whitespace": {
+        // After `while`, `do`, `if`, `else`, `for` and `switch`.
+        "after-keyword": true,
+        // Before `while` and `else`.
+        "before-keyword": true,
+        "after-comma": true,
+        "after-left-paren": false,
+        "before-right-paren": false,
+        "after-left-square": false,
+        "before-right-square": false,
+        "before-semicolon": false,
+        "after-semicolon": true,
+
+        "newline-before-block": true,
+        "newline-before-fn-body": true,
+        "empty-around-fn-def": true,
+
+        "between-unary-and-operand": false,
+        "around-binary": true,
+        "around-accessor": false,
+        "in-conditional": true,
+        "after-cast": false,
+        "in-call": false,
+        "in-fn-def": false
     }
 }

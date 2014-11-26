@@ -51,19 +51,18 @@ static void check(void)
             while (column && isspace(g_lines[line].start[column]))
                 --column;
 
-            warn_at(&(location_t){.line = line, .column = column + 1},
+            warn_at(&(location_t){line, column + 1},
                     "Trailing witespaces are disallowed");
         }
 
         if (maximum_length && len > maximum_length)
-            warn_at(&(location_t){.line = line, .column = maximum_length},
+            warn_at(&(location_t){line, maximum_length},
                     "Line must be at most %d characters", maximum_length);
     }
 
     if (require_newline_at_eof)
         if (len > 0)
-            warn_at(&(location_t){.line = line - 1, .column = len},
-                    "Required newline at eof.");
+            warn_at(&(location_t){line - 1, len}, "Required newline at eof.");
 }
 
 
