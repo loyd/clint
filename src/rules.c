@@ -6,7 +6,8 @@
 #include "clint.h"
 
 #define RULES(XX)                                                             \
-    XX(naming)
+    XX(naming)                                                                \
+    XX(lines)
 
 #define XX(name) extern struct rule_s name ## _rule;
 RULES(XX)

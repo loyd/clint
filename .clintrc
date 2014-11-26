@@ -12,5 +12,11 @@
         "allow-short-in-loop": true,
         "allow-short-in-block": false,
         "disallow-leading-underscore": true
+    },
+
+    "lines": {
+        "maximum-length": 80,
+        "disallow-trailing-space": true,
+        "require-newline-at-eof": true
     }
 }
