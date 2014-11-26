@@ -1,0 +1,16 @@
+{
+    "naming": {
+        "global-var-prefix": "g_",
+        "global-fn-prefix": "",
+        "typedef-suffix": "_t",
+        "struct-suffix": "_s",
+        "union-suffix": "_u",
+        "enum-suffix": "_e",
+        "require-style": "under_score",
+        "min-length": 3,
+        "allow-short-on-top": false,
+        "allow-short-in-loop": true,
+        "allow-short-in-block": false,
+        "disallow-leading-underscore": true
+    }
+}
