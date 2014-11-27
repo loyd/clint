@@ -166,7 +166,7 @@ void *log_at(enum log_level_e level, location_t *loc, const char *format, ...)
     if (line_to >= vec_len(g_lines))
         line_to = vec_len(g_lines) - 1;
 
-    unsigned line_width = count_signs(line_to);
+    unsigned line_width = count_signs(line_to + 1);
 
     char pointer[2 + line_width + 3 + loc->column + 2];
     memset(pointer, '-', sizeof(pointer) - 2);

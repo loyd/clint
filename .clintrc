@@ -34,17 +34,20 @@
         "after-semicolon": true,
 
         "require-block-on-newline": true,
+        "newline-before-members": false,
         "newline-before-block": true,
         "newline-before-else": true,
         "newline-before-fn-body": true,
-        "empty-around-fn-def": true,
 
         "between-unary-and-operand": false,
         "around-binary": true,
+        "around-assignment": true,
         "around-accessor": false,
         "in-conditional": true,
         "after-cast": false,
         "in-call": false,
-        "in-fn-def": false
+        "after-name-in-fn-def": false,
+        "before-declarator-name": true,
+        "before-members": true
     }
 }
