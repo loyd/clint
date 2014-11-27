@@ -215,8 +215,13 @@ static void check_tokens(void)
                 break;
 
             case PN_SEMI:
-                check_space_before(i, before_semicolon, "semicolon");
-                check_space_after(i, after_semicolon, "semicolon");
+                if (g_tokens[i + 1].kind != PN_LPAREN &&
+                    g_tokens[i + 1].kind != PN_SEMI)
+                    check_space_before(i, before_semicolon, "semicolon");
+
+                if (g_tokens[i + 1].kind != PN_RPAREN &&
+                    g_tokens[i + 1].kind != PN_SEMI)
+                    check_space_after(i, after_semicolon, "semicolon");
 
             default:
                 break;

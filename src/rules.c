@@ -8,7 +8,8 @@
 #define RULES(XX)                                                             \
     XX(naming)                                                                \
     XX(lines)                                                                 \
-    XX(whitespace)
+    XX(whitespace)                                                            \
+    XX(block)
 
 #define XX(name) extern struct rule_s name ## _rule;
 RULES(XX)

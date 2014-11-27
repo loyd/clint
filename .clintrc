@@ -49,5 +49,12 @@
         "after-name-in-fn-def": false,
         "before-declarator-name": true,
         "before-members": true
+    },
+
+    "block": {
+        "disallow-empty": true,
+        "disallow-short": true,
+        "disallow-oneline-if": true,
+        "require-decls-on-top": true
     }
 }
