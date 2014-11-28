@@ -25,6 +25,7 @@
         "after-keyword": true,
         // Before `while` and `else`.
         "before-keyword": true,
+        "before-comma": false,
         "after-comma": true,
         "after-left-paren": false,
         "before-right-paren": false,
@@ -48,7 +49,8 @@
         "in-call": false,
         "after-name-in-fn-def": false,
         "before-declarator-name": true,
-        "before-members": true
+        "before-members": true,
+        "pointer-place": "declarator"
     },
 
     "block": {
@@ -56,5 +58,5 @@
         "disallow-short": true,
         "disallow-oneline-if": true,
         "require-decls-on-top": true
-    }
+    },
 }

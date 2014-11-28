@@ -1,9 +1,12 @@
+#include <string.h>
+
 #include "clint.h"
 
 enum {NONE, DISALLOWED, REQUIRED};
 
 static int after_keyword = NONE;
 static int before_keyword = NONE;
+static int before_comma = NONE;
 static int after_comma = NONE;
 static int after_left_paren = NONE;
 static int before_right_paren = NONE;
@@ -27,6 +30,8 @@ static int after_name_in_fn_def = NONE;
 static int before_declarator_name = NONE;
 static int before_members = NONE;
 
+static enum {FREE, MIDDLE, TYPE, DECL} pointer_place = FREE;
+
 
 static void configure(json_value *config)
 {
@@ -38,6 +43,7 @@ static void configure(json_value *config)
 
     bind_option(after_keyword,             "after-keyword");
     bind_option(before_keyword,            "before-keyword");
+    bind_option(before_comma,              "before-comma");
     bind_option(after_comma,               "after-comma");
     bind_option(after_left_paren,          "after-left-paren");
     bind_option(before_right_paren,        "before-right-paren");
@@ -60,6 +66,14 @@ static void configure(json_value *config)
     bind_option(after_name_in_fn_def,      "after-name-in-fn-def");
     bind_option(before_declarator_name,    "before-declarator-name");
     bind_option(before_members,            "before-members");
+
+    if ((value = json_get(config, "pointer-place", json_string)))
+        if (!strcmp("declarator", value->u.string.ptr))
+            pointer_place = DECL;
+        else if (!strcmp("type", value->u.string.ptr))
+            pointer_place = TYPE;
+        else if (!strcmp("middle", value->u.string.ptr))
+            pointer_place = MIDDLE;
 }
 
 
@@ -193,6 +207,8 @@ static void check_tokens(void)
                 break;
 
             case PN_COMMA:
+                check_space_before(i, before_comma, "comma");
+
                 if (g_tokens[i + 1].kind != PN_RBRACE &&
                     g_tokens[i + 1].kind != PN_RSQUARE)
                     check_space_after(i, after_comma, "comma");
@@ -320,7 +336,9 @@ static bool process_call(struct call_s *tree)
 
 static bool process_declarator(struct declarator_s *tree)
 {
-    if (!tree->name)
+    if (!tree->name ||
+        g_tokens[tree->name - 1].kind == PN_LPAREN ||
+        g_tokens[tree->name - 1].kind == PN_STAR)
         return false;
 
     check_space_before(tree->name, before_declarator_name, "declarator name");
@@ -362,6 +380,31 @@ static bool process_specifiers(struct specifiers_s *tree)
 }
 
 
+static bool process_pointer(struct pointer_s *tree)
+{
+    int before = (pointer_place != TYPE) + 1;
+    int after = (pointer_place != DECL) + 1;
+    toknum_t place = tree->specs ? tree->specs->end : tree->start;
+    enum token_e next = g_tokens[place + 1].kind;
+    enum token_e prev = g_tokens[tree->start - 1].kind;
+
+    if (tree->specs)
+        check_space_before(tree->specs->start, DISALLOWED, "qualifier");
+
+    if (next == PN_STAR)
+        check_space_after(place, tree->specs ? REQUIRED : DISALLOWED,
+                          "pointer");
+
+    if (!(tree->parent->type == POINTER || prev == PN_LPAREN))
+        check_space_before(tree->start, before, "pointer");
+
+    if (!(next == PN_STAR || next == PN_RPAREN || next == PN_COMMA))
+        check_space_after(place, after, "pointer");
+
+    return true;
+}
+
+
 static void check(void)
 {
     check_tokens();
@@ -375,6 +418,9 @@ static void check(void)
     iterate_by_type(CALL, process_call);
     iterate_by_type(DECLARATOR, process_declarator);
     iterate_by_type(SPECIFIERS, process_specifiers);
+
+    if (pointer_place != FREE)
+        iterate_by_type(POINTER, process_pointer);
 }
 
 
