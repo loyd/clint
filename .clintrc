@@ -59,4 +59,11 @@
         "disallow-oneline-if": true,
         "require-decls-on-top": true
     },
+
+    "runtime": {
+        "require-threadsafe-fn": false,
+        "require-safe-fn": true,
+        "require-sized-int": true,
+        "require-sizeof-as-fn": false
+    }
 }

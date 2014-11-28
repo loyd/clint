@@ -9,7 +9,8 @@
     XX(naming)                                                                \
     XX(lines)                                                                 \
     XX(whitespace)                                                            \
-    XX(block)
+    XX(block)                                                                 \
+    XX(runtime)
 
 #define XX(name) extern struct rule_s name ## _rule;
 RULES(XX)

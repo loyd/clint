@@ -273,6 +273,14 @@ static bool process_unary(struct unary_s *tree)
 {
     int mode = between_unary_and_operand;
 
+    if (g_tokens[tree->op].kind == KW_SIZEOF)
+    {
+        if (g_tokens[tree->op + 1].kind == PN_LPAREN)
+            check_space_before(tree->op + 1, in_call, "call");
+
+        return true;
+    }
+
     if (tree->op < tree->expr->start)
         check_space_after(tree->op, mode, "unary operator");
     else
