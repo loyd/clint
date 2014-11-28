@@ -1027,7 +1027,7 @@ static inline tree_t constant_expression(void)
  */
 static tree_t declaration(void)
 {
-    tree_t specs = declaration_specifiers(false);
+    tree_t specs = declaration_specifiers(true);
 
     if (accept(PN_SEMI))
         return specs ? finish_declaration(specs->start, specs, NULL)
