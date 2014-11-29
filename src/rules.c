@@ -8,6 +8,7 @@
 #define RULES(XX)                                                             \
     XX(naming)                                                                \
     XX(lines)                                                                 \
+    XX(indentation)                                                           \
     XX(whitespace)                                                            \
     XX(block)                                                                 \
     XX(runtime)

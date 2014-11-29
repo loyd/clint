@@ -1,3 +1,6 @@
+// -*- json -*-
+// vim: set syntax=json
+
 {
     "naming": {
         "global-var-prefix": "g_",
@@ -7,7 +10,7 @@
         "union-suffix": "_u",
         "enum-suffix": "_e",
         "require-style": "under_score",
-        "min-length": 3,
+        "minimum-length": 3,
         "allow-short-on-top": false,
         "allow-short-in-loop": true,
         "allow-short-in-block": false,
@@ -18,6 +21,12 @@
         "maximum-length": 80,
         "disallow-trailing-space": true,
         "require-newline-at-eof": true
+    },
+
+    "indentation": {
+        "size": 4,
+        "maximum-level": 4,
+        "flat-switch": false
     },
 
     "whitespace": {

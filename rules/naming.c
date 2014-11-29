@@ -12,7 +12,7 @@ static char *struct_suffix = NULL;
 static char *union_suffix = NULL;
 static char *enum_suffix = NULL;
 static enum {NONE, UNDER_SCORE} style = NONE;
-static int min_length = 0;
+static int minimum_length = 0;
 static bool allow_short_on_top = true;
 static bool allow_short_in_loop = true;
 static bool allow_short_in_block = true;
@@ -53,9 +53,9 @@ static void configure(json_value *config)
         else if (!strcmp("under_score", value->u.string.ptr))
             style = UNDER_SCORE;
 
-    if ((value = json_get(config, "min-length", json_integer)))
+    if ((value = json_get(config, "minimum-length", json_integer)))
         if (value->u.integer)
-            min_length = value->u.integer;
+            minimum_length = value->u.integer;
 
     if ((value = json_get(config, "allow-short-on-top", json_boolean)))
         allow_short_on_top = value->u.boolean;
@@ -110,10 +110,10 @@ static void check_name(toknum_t toknum, bool strict, char *prefix, char *suffix)
             }
     }
 
-    if (strict && min_length)
-        if (token->end.pos - token->start.pos + 1 < min_length)
+    if (strict && minimum_length)
+        if (token->end.pos - token->start.pos + 1 < minimum_length)
             warn_at(&token->start, "Identifier should be at least %d",
-                    min_length);
+                    minimum_length);
 }
 
 

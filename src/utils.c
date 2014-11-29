@@ -26,6 +26,18 @@ void *xmalloc(size_t size)
     return ptr;
 }
 
+void *xcalloc(size_t num, size_t size)
+{
+    assert(num > 0);
+    assert(size > 0);
+
+    void *ptr = calloc(num, size);
+    if (!ptr)
+        abort();
+
+    return ptr;
+}
+
 
 void *xrealloc(void *ptr, size_t size)
 {
