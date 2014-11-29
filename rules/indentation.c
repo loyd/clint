@@ -225,6 +225,26 @@ static bool process_if(struct if_s *tree)
 }
 
 
+static bool process_for(struct for_s *tree)
+{
+    if (!is_multiline(tree))
+        return false;
+
+    check_branch(tree->body);
+    return true;
+}
+
+
+static bool process_while(struct while_s *tree)
+{
+    if (!is_multiline(tree))
+        return false;
+
+    check_branch(tree->body);
+    return true;
+}
+
+
 static bool process_struct(struct struct_s *tree)
 {
     if (tree->members)
@@ -286,6 +306,9 @@ static void check(void)
     iterate_by_type(DEFAULT, process_case);
     iterate_by_type(BLOCK, process_block);
     iterate_by_type(IF, process_if);
+    iterate_by_type(FOR, process_for);
+    iterate_by_type(WHILE, process_while);
+    iterate_by_type(DO_WHILE, process_while);
     iterate_by_type(STRUCT, process_struct);
     iterate_by_type(UNION, process_struct);
     iterate_by_type(ENUM, process_enum);

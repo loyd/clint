@@ -1459,9 +1459,9 @@ block
                 :value (0)
             :body empty
         do-while
-            :body constant
+            :cond constant
                 :value (0)
-            :cond empty
+            :body empty
     ]
 ~~~~~~~~~~~~~~~
 

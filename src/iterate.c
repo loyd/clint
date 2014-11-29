@@ -191,17 +191,11 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
         }
         case SWITCH:
         case WHILE:
+        case DO_WHILE:
         {
             struct switch_s *tree = raw;
             node(cond);
             node(body);
-            break;
-        }
-        case DO_WHILE:
-        {
-            struct do_while_s *tree = raw;
-            node(body);
-            node(cond);
             break;
         }
         case FOR:

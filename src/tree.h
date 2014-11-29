@@ -38,7 +38,7 @@ enum type_e {
     IF,                 // {cond, then_br, else_br*}
     SWITCH,             // {cond, body}
     WHILE,              // {cond, body}
-    DO_WHILE,           // {body, cond}
+    DO_WHILE,           // {cond, body}
     FOR,                // {init*, cond*, next*, body}
     GOTO,               // {#label}
     BREAK,              // {}
@@ -224,8 +224,8 @@ struct while_s {
 
 struct do_while_s {
     TREE_FIELDS;
-    tree_t body;
     tree_t cond;
+    tree_t body;
 };
 
 
