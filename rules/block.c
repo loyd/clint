@@ -29,7 +29,7 @@ static void configure(json_value *config)
 }
 
 
-static bool find_oneline(tree_t tree)
+static void find_oneline(tree_t tree)
 {
     bool found = false;
     location_t *start = &start_of(tree);
@@ -50,12 +50,10 @@ static bool find_oneline(tree_t tree)
     if (found)
         warn_at(start, "Oneline %s statements are disallowed",
                 stringify_type(tree->type));
-
-    return false;
 }
 
 
-static bool process_block(struct block_s *tree)
+static void process_block(struct block_s *tree)
 {
     if (require_decls_on_top)
     {
@@ -71,7 +69,7 @@ static bool process_block(struct block_s *tree)
     }
 
     if (tree->parent->type == FUNCTION_DEF)
-        return true;
+        return;
 
     if (disallow_empty && vec_len(tree->entities) == 0)
         warn_at(&start_of(tree), "Empty block are disallowed");
@@ -80,8 +78,6 @@ static bool process_block(struct block_s *tree)
         tree->parent->type != SWITCH &&
         !(tree->parent->type == IF && tree->entities[0]->type == IF))
         warn_at(&start_of(tree), "Short blocks are disallowed");
-
-    return true;
 }
 
 

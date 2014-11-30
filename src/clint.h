@@ -137,7 +137,7 @@ extern void parse(void);
  * @name Tree-walk.
  */
 //!@{
-typedef bool (*visitor_t)(tree_t tree);
+typedef void (*visitor_t)(tree_t tree);
 
 #define iterate_by_type(type, cb) iterate_by_type(type, (visitor_t)cb)
 extern void (iterate_by_type)(enum type_e type, visitor_t cb);

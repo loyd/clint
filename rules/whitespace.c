@@ -248,7 +248,7 @@ static void check_tokens(void)
 }
 
 
-static bool process_block(struct block_s *tree)
+static void process_block(struct block_s *tree)
 {
     check_newline_after(tree->start, require_block_on_newline, "block");
     check_newline_before(tree->end, require_block_on_newline, "block");
@@ -267,12 +267,10 @@ static bool process_block(struct block_s *tree)
     }
     else
         check_newline_before(tree->start, newline_before_block, "block");
-
-    return true;
 }
 
 
-static bool process_unary(struct unary_s *tree)
+static void process_unary(struct unary_s *tree)
 {
     int mode = between_unary_and_operand;
 
@@ -281,88 +279,75 @@ static bool process_unary(struct unary_s *tree)
         if (g_tokens[tree->op + 1].kind == PN_LPAREN)
             check_space_before(tree->op + 1, in_call, "call");
 
-        return true;
+        return;
     }
 
     if (tree->op < tree->expr->start)
         check_space_after(tree->op, mode, "unary operator");
     else
         check_space_before(tree->op, mode, "unary operator");
-
-    return true;
 }
 
 
-static bool process_binary(struct binary_s *tree)
+static void process_binary(struct binary_s *tree)
 {
     check_space_before(tree->op, around_binary, "binary operator");
     check_space_after(tree->op, around_binary, "binary operator");
-
-    return true;
 }
 
 
-static bool process_assignment(struct assignment_s *tree)
+static void process_assignment(struct assignment_s *tree)
 {
     check_space_before(tree->op, around_assignment, "assignment");
     check_space_after(tree->op, around_assignment, "assignment");
-
-    return true;
 }
 
 
-static bool process_accessor(struct accessor_s *tree)
+static void process_accessor(struct accessor_s *tree)
 {
     check_space_before(tree->op, around_accessor, "field accessor");
     check_space_after(tree->op, around_accessor, "field accessor");
-
-    return true;
 }
 
 
-static bool process_conditional(struct conditional_s *tree)
+static void process_conditional(struct conditional_s *tree)
 {
     check_space_after(tree->cond->end, in_conditional, "test");
     check_space_before(tree->then_br->start, in_conditional, "consequent");
     check_space_after(tree->then_br->end, in_conditional, "consequent");
     check_space_before(tree->else_br->start, in_conditional, "alternate");
-
-    return true;
 }
 
 
-static bool process_cast(struct cast_s *tree)
+static void process_cast(struct cast_s *tree)
 {
     check_space_after(tree->type_name->end + 1, after_cast, "cast");
-    return true;
 }
 
 
-static bool process_call(struct call_s *tree)
+static void process_call(struct call_s *tree)
 {
     check_space_before(tree->left->end + 1, in_call, "call");
-    return true;
 }
 
 
-static bool process_declarator(struct declarator_s *tree)
+static void process_declarator(struct declarator_s *tree)
 {
     if (!tree->name ||
         g_tokens[tree->name - 1].kind == PN_LPAREN ||
         g_tokens[tree->name - 1].kind == PN_STAR)
-        return false;
+        return;
 
     check_space_before(tree->name, before_declarator_name, "declarator name");
-    return false;
 }
 
 
-static bool process_specifiers(struct specifiers_s *tree)
+static void process_specifiers(struct specifiers_s *tree)
 {
     tree_t dirtype = tree->dirtype;
 
     if (!dirtype)
-        return false;
+        return;
 
     if (dirtype->type == ENUM)
     {
@@ -384,14 +369,10 @@ static bool process_specifiers(struct specifiers_s *tree)
             check_space_before(st, before_members, "members");
         }
     }
-    else
-        return false;
-
-    return true;
 }
 
 
-static bool process_pointer(struct pointer_s *tree)
+static void process_pointer(struct pointer_s *tree)
 {
     int before = (pointer_place != TYPE) + 1;
     int after = (pointer_place != DECL) + 1;
@@ -411,8 +392,6 @@ static bool process_pointer(struct pointer_s *tree)
 
     if (!(next == PN_STAR || next == PN_RPAREN || next == PN_COMMA))
         check_space_after(place, after, "pointer");
-
-    return true;
 }
 
 

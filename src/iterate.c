@@ -322,9 +322,10 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
 
 
 static struct {
+    tree_t root;
     enum type_e type;
-    visitor_t cb;
-} iterator;
+    tree_t *cache[COMP_MEMBER + 1];
+} iterator = {0};
 
 
 static bool iterate_by_type_before_cb(const char *prop, enum item_e what,
@@ -340,8 +341,10 @@ static bool iterate_by_type_before_cb(const char *prop, enum item_e what,
             return true;
 
         case NODE:
-            return ((tree_t)raw)->type == iterator.type ? iterator.cb(raw)
-                                                        : true;
+            if (((tree_t)raw)->type == iterator.type)
+                vec_push(iterator.cache[iterator.type], raw);
+
+            return true;
     }
 
     assert(0);
@@ -351,9 +354,26 @@ static bool iterate_by_type_before_cb(const char *prop, enum item_e what,
 void (iterate_by_type)(enum type_e type, visitor_t cb)
 {
     assert(cb);
-    iterator.type = type;
-    iterator.cb = cb;
-    iterate(NULL, NULL, NODE, g_tree, iterate_by_type_before_cb, NULL);
+
+    if (iterator.root != g_tree)
+    {
+        iterator.root = g_tree;
+        for (int i = 0; i <= COMP_MEMBER; ++i)
+        {
+            free_vec(iterator.cache[i]);
+            iterator.cache[i] = NULL;
+        }
+    }
+
+    if (!iterator.cache[type])
+    {
+        iterator.cache[type] = new_vec(tree_t, 32);
+        iterator.type = type;
+        iterate(NULL, NULL, NODE, g_tree, iterate_by_type_before_cb, NULL);
+    }
+
+    for (unsigned i = 0, len = vec_len(iterator.cache[type]); i < len; ++i)
+        cb(iterator.cache[type][i]);
 }
 
 

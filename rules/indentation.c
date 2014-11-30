@@ -158,7 +158,7 @@ static tree_t get_deep_case(tree_t tree)
 }
 
 
-static bool process_block(struct block_s *tree)
+static void process_block(struct block_s *tree)
 {
     check_like_block((void *)tree, tree->entities);
 
@@ -182,8 +182,6 @@ static bool process_block(struct block_s *tree)
         if (nested)
             mark_pop(end_of(tree));
     }
-
-    return true;
 }
 
 
@@ -198,12 +196,12 @@ static void check_branch(tree_t tree)
 }
 
 
-static bool process_if(struct if_s *tree)
+static void process_if(struct if_s *tree)
 {
     unsigned cond_end = end_of(tree->cond), else_start;
 
     if (!is_multiline(tree))
-        return false;
+        return;
 
     if (start_of(tree->cond) == start_of(tree) + 1)
         ++cond_end;
@@ -211,57 +209,45 @@ static bool process_if(struct if_s *tree)
     check_branch(tree->then_br);
 
     if (!tree->else_br)
-        return true;
+        return;
 
     else_start = end_of_prev(tree->else_br);
     check_branch(tree->else_br);
 
     if (end_of(tree->then_br) != else_start)
         mark_check(else_start);
-
-    return true;
 }
 
 
-static bool process_for(struct for_s *tree)
+static void process_for(struct for_s *tree)
 {
-    if (!is_multiline(tree))
-        return false;
-
-    check_branch(tree->body);
-    return true;
+    if (is_multiline(tree))
+        check_branch(tree->body);
 }
 
 
-static bool process_while(struct while_s *tree)
+static void process_while(struct while_s *tree)
 {
-    if (!is_multiline(tree))
-        return false;
-
-    check_branch(tree->body);
-    return true;
+    if (is_multiline(tree))
+        check_branch(tree->body);
 }
 
 
-static bool process_struct(struct struct_s *tree)
+static void process_struct(struct struct_s *tree)
 {
     if (tree->members)
         check_like_block((void *)tree, tree->members);
-
-    return true;
 }
 
 
-static bool process_enum(struct enum_s *tree)
+static void process_enum(struct enum_s *tree)
 {
     if (tree->values)
         check_like_block((void *)tree, tree->values);
-
-    return true;
 }
 
 
-static bool process_case(tree_t tree)
+static void process_case(tree_t tree)
 {
     tree_t stmt = tree->type == CASE ? ((struct case_s *)tree)->stmt
                                      : ((struct default_s *)tree)->stmt;
@@ -272,12 +258,10 @@ static bool process_case(tree_t tree)
     if (!(start_of(tree) == start_of(stmt) ||
         stmt->type == CASE || stmt->type == DEFAULT || stmt->type == BLOCK))
         mark_push(start_of(tree));
-
-    return true;
 }
 
 
-static bool process_label(struct label_s *tree)
+static void process_label(struct label_s *tree)
 {
     unsigned label_start = start_of(tree);
 
@@ -287,8 +271,6 @@ static bool process_label(struct label_s *tree)
 
     if (get_actual_indent(label_start) != 0)
         warn_at(&(location_t){label_start, 0}, "Label must stick to left");
-
-    return true;
 }
 
 

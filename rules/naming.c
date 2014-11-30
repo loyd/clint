@@ -146,14 +146,14 @@ static void check_dirtype(tree_t dirtype, bool strict)
 }
 
 
-static bool process_decl(struct declaration_s *tree)
+static void process_decl(struct declaration_s *tree)
 {
     struct specifiers_s *specs = (void *)tree->specs;
     bool is_global = false;
     bool is_typedef = false;
 
     if (!specs)
-        return false;
+        return;
 
     bool strict = !(allow_short_on_top && is_global ||
                     allow_short_in_loop && tree->parent->type == FOR ||
@@ -162,7 +162,7 @@ static bool process_decl(struct declaration_s *tree)
     check_dirtype(specs->dirtype, strict);
 
     if (!tree->decls)
-        return false;
+        return;
 
     if (tree->parent->type == TRANSL_UNIT && !specs->storage)
         is_global = true;
@@ -185,8 +185,6 @@ static bool process_decl(struct declaration_s *tree)
             is_global ? global_var_prefix : NULL,
             is_typedef ? typedef_suffix : NULL);
     }
-
-    return false;
 }
 
 
@@ -198,7 +196,7 @@ static bool is_main(toknum_t name)
 }
 
 
-static bool process_fn_def(struct function_def_s *tree)
+static void process_fn_def(struct function_def_s *tree)
 {
     struct declarator_s *decl = (void *)tree->decl;
     struct specifiers_s *specs = (void *)tree->specs;
@@ -208,8 +206,6 @@ static bool process_fn_def(struct function_def_s *tree)
     check_dirtype(specs->dirtype, allow_short_on_top);
     check_name(decl->name, !allow_short_on_top,
                with_prefix ? global_fn_prefix : NULL, NULL);
-
-    return false;
 }
 
 
