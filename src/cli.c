@@ -1,10 +1,11 @@
 #include <assert.h>
+#include <dirent.h>
 #include <errno.h>
-#include <ftw.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
 
 #include <json.h>
 
@@ -146,13 +147,12 @@ static bool accept(const char *fpath)
 
 #define CHECK(x) if (!(x)) goto error
 
-static int process_file(const char *fpath, const struct stat *sb, int type)
+static int process_file(const char *fpath)
 {
-    //#TODO: what about skipping `.svn`, `.git` etc.?
     FILE *fp;
     int size;
 
-    if (!(type == FTW_F && accept(fpath)))
+    if (!accept(fpath))
         return 0;
 
     g_filename = xstrdup(fpath);
@@ -208,6 +208,54 @@ error:
     reset_state();
     errno = 0;
     return 0;
+}
+
+
+static void tree_walk(const char *path)
+{
+    struct stat fstat;
+
+    if (stat(path, &fstat))
+        goto error;
+
+    if (S_ISREG(fstat.st_mode))
+    {
+        process_file(path);
+        return;
+    }
+
+    if (!S_ISDIR(fstat.st_mode))
+        return;
+
+    DIR *dir = opendir(path);
+
+    if (!dir)
+        goto error;
+
+    for (;;)
+    {
+        struct dirent *entry = readdir(dir);
+
+        if (!entry)
+            break;
+
+        // Skip hidden (".", "..", ".svn", ".git", ".hg" etc).
+        if (entry->d_name[0] == '.')
+            continue;
+
+        char fpath[strlen(path) + strlen(entry->d_name) + 2];
+        sprintf(fpath, "%s/%s", path, entry->d_name);
+        tree_walk(fpath);
+    }
+
+    if (closedir(dir))
+        goto error;
+
+    return;
+
+error:
+    fprintf(stderr, "%s: %s.\n", path, strerror(errno));
+    retval = MINOR_ERR;
 }
 
 
@@ -327,15 +375,7 @@ int main(int argc, const char *argv[])
         vec_push(files, ".");
 
     for (unsigned i = 0; i < vec_len(files); ++i)
-    {
-        errno = 0;
-        ftw(files[i], process_file, 20);
-        if (errno)
-        {
-            printf("%s: %s.\n", files[i], strerror(errno));
-            retval = MINOR_ERR;
-        }
-    }
+        tree_walk(files[i]);
 
     return retval;
 }
