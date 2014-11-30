@@ -13,9 +13,13 @@
 
 
 static enum {OK, IMPERFECT, MINOR_ERR, MAJOR_ERR} retval = OK;
+static enum {TOKENIZE, PARSE, CHECK} action = CHECK;
+static const char *config = ".clintrc";
+static int limit = -1;
 
 
 enum cmd_e {
+    CMD_LIMIT,
     CMD_CONFIG,
     CMD_SHORTLY,
     CMD_VERBOSE,
@@ -37,6 +41,7 @@ struct option_s {
 
 
 static struct option_s options[] = {
+    {CMD_LIMIT,      "limit",     'l',  "The maximum number of errors", "NUM"},
     {CMD_CONFIG,     "config",    'c',  "Use FILE instead .clintrc",   "FILE"},
     {CMD_SHORTLY,    "shortly",   's',  "One-line output",               NULL},
     {CMD_VERBOSE,    "verbose",   'v',  "Output errors during run",      NULL},
@@ -109,16 +114,20 @@ static struct option_s *find_abbrev(char abbrev)
 }
 
 
-static const char *config = ".clintrc";
-
-static enum {TOKENIZE, PARSE, CHECK} action = CHECK;
-
 static void process_option(struct option_s *opt, const char *arg)
 {
     assert(opt);
 
     switch (opt->id)
     {
+        case CMD_LIMIT:
+            if (sscanf(arg, "%d", &limit) < 1 || limit < 0)
+            {
+                fprintf(stderr, "Invalid argument of --%s.\n", opt->command);
+                exit(MAJOR_ERR);
+            }
+            break;
+
         case CMD_CONFIG:
             config = arg;
             break;
@@ -210,7 +219,7 @@ static int process_file(const char *fpath)
             retval = IMPERFECT;
     }
 
-    print_errors_in_order();
+    print_errors_in_order(limit);
     printf("Done processing %s.\n", fpath);
     reset_state();
     errno = 0;

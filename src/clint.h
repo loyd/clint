@@ -115,7 +115,7 @@ enum log_mode_e {
 
 
 extern void set_log_mode(enum log_mode_e level);
-extern void print_errors_in_order(void);
+extern void print_errors_in_order(int limit);
 
 extern void add_log(bool stylistic, unsigned line, unsigned column,
     const char *fmt, ...) __attribute__((format(printf, 4, 5)));
