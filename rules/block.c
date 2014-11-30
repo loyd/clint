@@ -77,6 +77,7 @@ static bool process_block(struct block_s *tree)
         warn_at(&start_of(tree), "Empty block are disallowed");
 
     if (disallow_short && vec_len(tree->entities) == 1 &&
+        tree->parent->type != SWITCH &&
         !(tree->parent->type == IF && tree->entities[0]->type == IF))
         warn_at(&start_of(tree), "Short blocks are disallowed");
 

@@ -11,7 +11,7 @@
 #include "clint.h"
 
 
-enum {OK, IMPERFECT, MINOR_ERR, MAJOR_ERR} retval = OK;
+static enum {OK, IMPERFECT, MINOR_ERR, MAJOR_ERR} retval = OK;
 
 
 enum cmd_e {

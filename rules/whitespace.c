@@ -189,13 +189,16 @@ static void check_tokens(void)
     for (toknum_t i = 2; i < vec_len(g_tokens) - 1; ++i)
         switch (g_tokens[i].kind)
         {
-            case KW_DO:
+            case KW_IF:
             case KW_ELSE:
             case KW_WHILE:
-            case KW_IF:
+            case KW_DO:
             case KW_FOR:
             case KW_SWITCH:
-                check_newline_before(i, newline_before_control, "control");
+                // Case "else if".
+                if (g_tokens[i].kind == KW_IF && g_tokens[i-1].kind != KW_ELSE)
+                    check_newline_before(i, newline_before_control, "control");
+
                 check_space_before(i, before_control, "control");
                 check_space_after(i, after_control, "control");
                 break;

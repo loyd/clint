@@ -1,7 +1,7 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <string.h>
-
+#include <stdio.h>
 #include "clint.h"
 
 // Default settings.
@@ -160,6 +160,9 @@ static bool process_decl(struct declaration_s *tree)
                     allow_short_in_block && !is_global);
 
     check_dirtype(specs->dirtype, strict);
+
+    if (!tree->decls)
+        return false;
 
     if (tree->parent->type == TRANSL_UNIT && !specs->storage)
         is_global = true;

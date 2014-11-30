@@ -271,7 +271,7 @@ static bool process_case(tree_t tree)
     mark_check(start_of(stmt));
 
     if (!(start_of(tree) == start_of(stmt) ||
-        stmt->type == CASE || stmt->type == DEFAULT))
+        stmt->type == CASE || stmt->type == DEFAULT || stmt->type == BLOCK))
         mark_push(start_of(tree));
 
     return true;

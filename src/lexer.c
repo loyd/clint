@@ -279,15 +279,15 @@ static bool string_literal(token_t *token)
  */
 static bool check_ucn(void)
 {
-  if (!(*ch == '\\' && tolower(ch[1]) == 'u'))
-    return false;
+    if (!(*ch == '\\' && tolower(ch[1]) == 'u'))
+        return false;
 
-  int digits = ch[1] == 'u' ? 4 : 8;
-  for (int i = 0; i < digits; ++i)
-    if (!isxdigit(ch[i+2]))
-      return false;
+    int digits = ch[1] == 'u' ? 4 : 8;
+    for (int i = 0; i < digits; ++i)
+        if (!isxdigit(ch[i+2]))
+            return false;
 
-  return true;
+    return true;
 }
 
 

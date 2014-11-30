@@ -14,6 +14,7 @@
 
 //#TODO: support for comments.
 //#TODO: preprocessor.
+//#TODO: GC for vectors.
 
 static toknum_t current;
 static bool allow_eof;
@@ -175,9 +176,7 @@ static toknum_t expect(enum token_e kind)
 
 static tree_t *new_tree_vec(size_t init_capacity)
 {
-    tree_t *res = new_vec(tree_t, init_capacity);
-    vec_push(orphans.vectors, res);
-    return res;
+    return new_vec(tree_t, init_capacity);
 }
 
 
@@ -185,7 +184,6 @@ static toknum_t *new_toknum_vec(size_t init_capacity)
 {
     return new_vec(toknum_t, init_capacity);
 }
-
 
 
 #define T(type) type, NULL, 0, 0
