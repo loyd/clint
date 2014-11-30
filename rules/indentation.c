@@ -292,7 +292,7 @@ static bool process_label(struct label_s *tree)
     return true;
 }
 
-#include <stdio.h>
+
 static void check(void)
 {
     lines = xcalloc(vec_len(g_lines), sizeof(*lines));
