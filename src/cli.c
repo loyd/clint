@@ -227,7 +227,9 @@ static int process_file(const char *fpath)
             retval = IMPERFECT;
     }
 
-    print_errors_in_order(limit);
+    if (print_errors_in_order(limit) && retval == OK)
+        retval = IMPERFECT;
+
     printf("Done processing %s.\n", fpath);
     reset_state();
     errno = 0;

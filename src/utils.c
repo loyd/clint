@@ -246,10 +246,12 @@ static int compare_errors(error_t *a, error_t *b)
 }
 
 
-void print_errors_in_order(int limit)
+bool print_errors_in_order(int limit)
 {
+    bool has_errors = false;
+
     if (!g_errors || log_mode & LOG_SILENCE)
-        return;
+        return has_errors;
 
     qsort(g_errors, vec_len(g_errors), sizeof(error_t),
         (int (*)(const void *, const void *))compare_errors);
@@ -257,7 +259,10 @@ void print_errors_in_order(int limit)
     for (unsigned i = 0; i < vec_len(g_errors) && limit; ++i)
         if (g_errors[i].stylistic || log_mode & LOG_VERBOSE)
         {
+            has_errors = true;
             print_error(&g_errors[i]);
             --limit;
         }
+
+    return has_errors;
 }
