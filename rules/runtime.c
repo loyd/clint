@@ -74,7 +74,8 @@ static void process_call(struct call_s *tree)
     if (require_threadsafe_fn &&
         bsearch(key, threadunsafe, sizeof(threadunsafe)/sizeof(*threadunsafe),
             sizeof(*threadunsafe), (int (*)(const void *, const void *))strcmp))
-        warn_at(&ident->start, "Consider using %s_r instead of %s", key, key);
+        add_warn_at(ident->start, "Consider using %s_r instead of %s",
+                    key, key);
 
     if (require_safe_fn)
     {
@@ -82,8 +83,8 @@ static void process_call(struct call_s *tree)
             sizeof(*unsafe), (int (*)(const void *, const void *))strcmp);
 
         if (res)
-            warn_at(&ident->start, "Consider using %s instead of %s",
-                    res + MAX_WORD_SZ, key);
+            add_warn_at(ident->start, "Consider using %s instead of %s",
+                        res + MAX_WORD_SZ, key);
     }
 }
 
@@ -110,7 +111,7 @@ static void process_id_type(struct id_type_s *tree)
         }
 
     if (!ok)
-        warn_at(&g_tokens[tree->start].start,
+        add_warn_at(g_tokens[tree->start].start,
             is_unsigned ? "Use uint16_t/uint64_t/etc, rather than C type"
                         : "Use int16_t/int64_t/etc, rather than C type");
 }
@@ -122,7 +123,7 @@ static void process_sizeof(struct unary_s *tree)
         return;
 
     if (g_tokens[tree->op + 1].kind != PN_LPAREN)
-        warn_at(&g_tokens[tree->op].end, "Use sizeof as function");
+        add_warn_at(g_tokens[tree->op].end, "Use sizeof like function");
 }
 
 

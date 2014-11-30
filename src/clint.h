@@ -22,6 +22,14 @@ typedef struct {
 } line_t;
 
 
+typedef struct {
+    bool stylistic;
+    unsigned line;
+    unsigned column;
+    char *message;
+} error_t;
+
+
 /*!
  * Global state.
  */
@@ -31,6 +39,7 @@ extern char       *g_data;      //!< Content of the current file.
 extern line_t     *g_lines;     //!< Pointers to starts of line.
 extern tree_t      g_tree;      //!< Tree of the current file.
 extern token_t    *g_tokens;    //!< 1-indexed consumed tokens.
+extern error_t    *g_errors;    //!< Errors and warnings.
 extern json_value *g_config;    //!< Root of the config file.
 //!@}
 
@@ -98,19 +107,24 @@ extern void free_vec(void *vec);
  * @name Logging.
  */
 //!@{
-enum log_level_e {
-    LOG_SILENCE,
-    LOG_WARNING,
-    LOG_ERROR
+enum log_mode_e {
+    LOG_NOTHING,
+    LOG_STYLE,
+    LOG_ALL
 };
 
-extern void set_log_level(enum log_level_e level);
 
-extern void *log_at(enum log_level_e level, location_t *loc, const char *fmt,
-                    ...) __attribute__((format(printf, 3, 4)));
+extern void set_log_mode(enum log_mode_e level);
+extern void print_errors_in_order(void);
 
-#define warn_at(...)  log_at(LOG_WARNING, __VA_ARGS__)
-#define error_at(...) log_at(LOG_ERROR, __VA_ARGS__)
+extern void add_log(bool stylistic, unsigned line, unsigned column,
+    const char *fmt, ...) __attribute__((format(printf, 4, 5)));
+
+
+#define add_warn(...)          add_log(true, __VA_ARGS__)
+#define add_error(...)         add_log(false, __VA_ARGS__)
+#define add_warn_at(loc, ...)  add_warn((loc).line, (loc).column, __VA_ARGS__)
+#define add_error_at(loc, ...) add_error((loc).line, (loc).column, __VA_ARGS__)
 //!@}
 
 

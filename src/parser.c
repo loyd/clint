@@ -19,7 +19,7 @@
 static toknum_t current;
 static bool allow_eof;
 
-#define error(toknum, ...) error_at(&g_tokens[toknum].start, __VA_ARGS__)
+#define error(toknum, ...) add_error_at(g_tokens[toknum].start, __VA_ARGS__)
 #define panic(...) (error(current, __VA_ARGS__), recover_last())
 
 

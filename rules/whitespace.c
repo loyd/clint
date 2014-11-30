@@ -105,8 +105,7 @@ static void check_space_before(toknum_t i, int mode, const char *where)
             msg = "Illegal space before %s";
 
     if (msg)
-        warn_at(&(location_t){prev_end->line, prev_end->column + 1},
-                msg, where);
+        add_warn(prev_end->line, prev_end->column + 1, msg, where);
 }
 
 
@@ -138,7 +137,7 @@ static void check_space_after(toknum_t i, int mode, const char *where)
             msg = "Illegal space after %s";
 
     if (msg)
-        warn_at(&(location_t){end->line, end->column + 1}, msg, where);
+        add_warn(end->line, end->column + 1, msg, where);
 }
 
 
@@ -159,7 +158,7 @@ static void check_newline_before(toknum_t i, int mode, const char *where)
             msg = "Newline before %s is disallowed";
 
     if (msg)
-        warn_at(&g_tokens[i].start, msg, where);
+        add_warn_at(g_tokens[i].start, msg, where);
 }
 
 
@@ -180,7 +179,7 @@ static void check_newline_after(toknum_t i, int mode, const char *where)
             msg = "Newline after %s is disallowed";
 
     if (msg)
-        warn_at(&g_tokens[i].end, msg, where);
+        add_warn_at(g_tokens[i].end, msg, where);
 }
 
 

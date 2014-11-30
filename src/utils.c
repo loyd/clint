@@ -26,6 +26,7 @@ void *xmalloc(size_t size)
     return ptr;
 }
 
+
 void *xcalloc(size_t num, size_t size)
 {
     assert(num > 0);
@@ -147,48 +148,65 @@ static inline unsigned get_line_len(unsigned line)
 }
 
 
+static enum log_mode_e log_mode = LOG_STYLE;
+
+void set_log_mode(enum log_mode_e level)
+{
+    log_mode = level;
+}
+
+
+void add_log(bool style, unsigned line, unsigned column, const char *fmt, ...)
+{
+    va_list arg;
+    int len;
+    char *msg;
+
+    if (!g_errors)
+        g_errors = new_vec(error_t, 24);
+
+    va_start(arg, fmt);
+    len = vsnprintf(NULL, 0, fmt, arg);
+    va_end(arg);
+
+    if (len <= 0)
+        return;
+
+    msg = xmalloc(len + 1);
+    va_start(arg, fmt);
+    vsnprintf(msg, len + 1, fmt, arg);
+    va_end(arg);
+
+    vec_push(g_errors, ((error_t){style, line, column, msg}));
+}
+
+
 #define MESSAGE_STYLE   "\x1b[1m"
 #define FILENAME_STYLE  "\x1b[32;1m"
 #define NORMAL_STYLE    "\x1b[0m"
 
-static enum log_level_e log_level = LOG_WARNING;
-
-void set_log_level(enum log_level_e level)
+static void print_error(error_t *error)
 {
-    log_level = level;
-}
+    assert(error->line < vec_len(g_lines));
+    unsigned line_len, line_from, line_to, line_width;
 
+    line_len = get_line_len(error->line);
+    assert(error->column <= line_len);
 
-void *log_at(enum log_level_e level, location_t *loc, const char *format, ...)
-{
-    assert(level > LOG_SILENCE);
-    assert(format);
-    assert(loc->line < vec_len(g_lines));
-
-    if (log_level < level)
-        return NULL;
-
-    unsigned line_len = get_line_len(loc->line);
-    assert(loc->column <= line_len);
-
-    va_list arg;
-    unsigned line_from = loc->line > 2 ? loc->line - 2 : 0;
-    unsigned line_to = loc->line+2;
+    line_from = error->line > 2 ? error->line - 2 : 0;
+    line_to = error->line + 2;
 
     if (line_to >= vec_len(g_lines))
         line_to = vec_len(g_lines) - 1;
 
-    unsigned line_width = count_signs(line_to + 1);
+    line_width = count_signs(line_to + 1);
 
-    char pointer[2 + line_width + 3 + loc->column + 2];
+    char pointer[2 + line_width + 3 + error->column + 2];
     memset(pointer, '-', sizeof(pointer) - 2);
     pointer[sizeof(pointer) - 2] = '^';
     pointer[sizeof(pointer) - 1] = '\0';
 
-    fprintf(stderr, MESSAGE_STYLE);
-    va_start(arg, format);
-    vfprintf(stderr, format, arg);
-    va_end(arg);
+    fprintf(stderr, "%s%s", MESSAGE_STYLE, error->message);
 
     if (g_filename)
         fprintf(stderr, "%s%s", NORMAL_STYLE " at " FILENAME_STYLE, g_filename);
@@ -197,13 +215,32 @@ void *log_at(enum log_level_e level, location_t *loc, const char *format, ...)
 
     for (unsigned i = line_from; i <= line_to; ++i)
     {
-        fprintf(stderr, "  %*d | %.*s\n", line_width, i+1, get_line_len(i),
+        fprintf(stderr, "  %*d | %.*s\n", line_width, i + 1, get_line_len(i),
                                           g_lines[i].start);
-        if (i == loc->line)
+        if (i == error->line)
             fprintf(stderr, "%s\n", pointer);
     }
 
     fprintf(stderr, "\n");
+}
 
-    return NULL;
+
+static int compare_errors(error_t *a, error_t *b)
+{
+    int res = a->line - b->line;
+    return res ? res : a->column - b->column;
+}
+
+
+void print_errors_in_order(void)
+{
+    if (!g_errors || log_mode == LOG_NOTHING)
+        return;
+
+    qsort(g_errors, vec_len(g_errors), sizeof(error_t),
+        (int (*)(const void *, const void *))compare_errors);
+
+    for (unsigned i = 0; i < vec_len(g_errors); ++i)
+        if (g_errors[i].stylistic || log_mode == LOG_ALL)
+            print_error(&g_errors[i]);
 }

@@ -48,8 +48,8 @@ static void find_oneline(tree_t tree)
     }
 
     if (found)
-        warn_at(start, "Oneline %s statements are disallowed",
-                stringify_type(tree->type));
+        add_warn_at(*start, "Oneline %s statements are disallowed",
+                    stringify_type(tree->type));
 }
 
 
@@ -64,20 +64,20 @@ static void process_block(struct block_s *tree)
 
         for (; i < vec_len(tree->entities); ++i)
             if (tree->entities[i]->type == DECLARATION)
-                warn_at(&start_of(tree->entities[i]),
-                        "Declarations must be on top");
+                add_warn_at(start_of(tree->entities[i]),
+                            "Declarations must be on top");
     }
 
     if (tree->parent->type == FUNCTION_DEF)
         return;
 
     if (disallow_empty && vec_len(tree->entities) == 0)
-        warn_at(&start_of(tree), "Empty block are disallowed");
+        add_warn_at(start_of(tree), "Empty block are disallowed");
 
     if (disallow_short && vec_len(tree->entities) == 1 &&
         tree->parent->type != SWITCH &&
         !(tree->parent->type == IF && tree->entities[0]->type == IF))
-        warn_at(&start_of(tree), "Short blocks are disallowed");
+        add_warn_at(start_of(tree), "Short blocks are disallowed");
 }
 
 

@@ -124,7 +124,7 @@ static void process_option(struct option_s *opt, const char *arg)
             break;
 
         case CMD_VERBOSE:
-            set_log_level(LOG_ERROR);
+            set_log_mode(LOG_ALL);
             break;
 
         case CMD_TOKENIZE:
@@ -210,6 +210,7 @@ static int process_file(const char *fpath)
             retval = IMPERFECT;
     }
 
+    print_errors_in_order();
     printf("Done processing %s.\n", fpath);
     reset_state();
     errno = 0;

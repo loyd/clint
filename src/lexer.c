@@ -25,11 +25,8 @@ static bool parsing_pp_directive;
 
 
 #define error(...)                                                            \
-    error_at(&(location_t){                                                   \
-        .pos = ch,                                                            \
-        .line = vec_len(g_lines) - 1,                                         \
-        .column = ch - g_lines[vec_len(g_lines) - 1].start                    \
-    }, __VA_ARGS__)
+    (add_error(vec_len(g_lines) - 1, ch - g_lines[vec_len(g_lines) - 1].start,\
+               __VA_ARGS__), false)
 
 
 void init_lexer(void)

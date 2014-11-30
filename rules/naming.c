@@ -85,19 +85,19 @@ static void check_name(toknum_t toknum, bool strict, char *prefix, char *suffix)
     {
         plen = strlen(prefix);
         if (memcmp(token->start.pos, prefix, plen))
-            warn_at(&token->start, "Required \"%s\" prefix", prefix);
+            add_warn_at(token->start, "Required \"%s\" prefix", prefix);
     }
 
     if (suffix)
     {
         slen = strlen(suffix);
         if (memcmp(token->end.pos - slen + 1, suffix, slen))
-            warn_at(&token->end, "Required \"%s\" suffix", suffix);
+            add_warn_at(token->end, "Required \"%s\" suffix", suffix);
     }
 
     if (disallow_leading_underscore)
         if (token->start.pos[0] == '_')
-            warn_at(&token->start, "Leading underscore is disallowed");
+            add_warn_at(token->start, "Leading underscore is disallowed");
 
     if (style == UNDER_SCORE)
     {
@@ -105,15 +105,15 @@ static void check_name(toknum_t toknum, bool strict, char *prefix, char *suffix)
              pos <= token->end.pos - slen; ++pos)
             if (!islower(*pos) && *pos != '_')
             {
-                warn_at(&token->start, "Required under_score style");
+                add_warn_at(token->start, "Required under_score style");
                 break;
             }
     }
 
     if (strict && minimum_length)
         if (token->end.pos - token->start.pos + 1 < minimum_length)
-            warn_at(&token->start, "Identifier should be at least %d",
-                    minimum_length);
+            add_warn_at(token->start, "Identifier should be at least %d",
+                        minimum_length);
 }
 
 

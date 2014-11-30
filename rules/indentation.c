@@ -270,7 +270,7 @@ static void process_label(struct label_s *tree)
     lines[label_start].check = 0;
 
     if (get_actual_indent(label_start) != 0)
-        warn_at(&(location_t){label_start, 0}, "Label must stick to left");
+        add_warn(label_start, 0, "Label must stick to left");
 }
 
 
@@ -302,13 +302,13 @@ static void check(void)
         if (lines[i].check)
         {
             if (actual != expected)
-                warn_at(&(location_t){i, actual}, indent_char == '\t' ?
-                    "Expected indentation of %u tabs" :
-                    "Expected indentation of %u spaces", expected);
+                add_warn(i, actual, indent_char == '\t' ?
+                         "Expected indentation of %u tabs" :
+                         "Expected indentation of %u spaces", expected);
 
             if (maximum_level && actual >= (maximum_level + 1) * indent_size)
-                warn_at(&(location_t){i, actual},
-                        "Nesting level should not exceed %d", maximum_level);
+                add_warn(i, actual, "Nesting level should not exceed %d",
+                         maximum_level);
         }
 
         if (lines[i].push)
