@@ -22,8 +22,8 @@ enum cmd_e {
     CMD_LIMIT,
     CMD_SHORTLY,
     CMD_CONFIG,
-    CMD_VERBOSE,
     CMD_NO_COLORS,
+    CMD_VERBOSE,
     CMD_TOKENIZE,
     CMD_SHOW_TREE,
     CMD_HELP,
@@ -44,8 +44,8 @@ static struct option_s options[] = {
     {CMD_LIMIT,      "limit",     'l',  "The maximum number of errors", "NUM"},
     {CMD_SHORTLY,    "shortly",   's',  "One-line output",               NULL},
     {CMD_CONFIG,     "config",    'c',  "Use FILE instead .clintrc",   "FILE"},
-    {CMD_VERBOSE,    "verbose",   'v',  "Output errors during run",      NULL},
     {CMD_NO_COLORS,  "no-colors",  0,   "Disable colors for output",     NULL},
+    {CMD_VERBOSE,    "verbose",   'v',  "Output errors during run",      NULL},
     {CMD_TOKENIZE,   "tokenize",   0,   "Tokenize file and exit",        NULL},
     {CMD_SHOW_TREE,  "show-tree",  0,   "Parse file and exit",           NULL},
     {CMD_HELP,       "help",      'h',  "Display this help and exit",    NULL},
@@ -134,6 +134,10 @@ static void process_option(struct option_s *opt, const char *arg)
 
         case CMD_CONFIG:
             config = arg;
+            break;
+
+        case CMD_NO_COLORS:
+            set_log_mode(LOG_NO_COLORS);
             break;
 
         case CMD_VERBOSE:

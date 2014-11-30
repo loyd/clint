@@ -180,10 +180,15 @@ void add_log(bool style, unsigned line, unsigned column, const char *fmt, ...)
     vec_push(g_errors, ((error_t){style, line, column, msg}));
 }
 
-
-#define MESSAGE_STYLE   "\x1b[1m"
-#define FILENAME_STYLE  "\x1b[32;1m"
-#define NORMAL_STYLE    "\x1b[0m"
+#ifdef _WIN32
+#   define MESSAGE_STYLE ""
+#   define FILENAME_STYLE ""
+#   define NORMAL_STYLE ""
+#else
+#   define MESSAGE_STYLE   "\x1b[1m"
+#   define FILENAME_STYLE  "\x1b[32;1m"
+#   define NORMAL_STYLE    "\x1b[0m"
+#endif
 
 static void print_error(error_t *error)
 {
