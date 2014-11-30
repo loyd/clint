@@ -594,6 +594,7 @@ void pull_token(token_t *token)
             // Fallthrough.
 
         default:
+            error("Unknown lexeme");
             eat(1);
             success = false;
             break;

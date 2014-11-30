@@ -2718,6 +2718,17 @@ transl-unit
     ]
 ~~~~~~~~~~~~
 
+within control*
+==============
+{
+    do {} lll
+    while (0);
+}
+~~~~~~~~~~~~~~
+block
+    :entities []
+~~~~~~~~~~~~~~
+
 
 [unexpected end of file]
 
@@ -2757,3 +2768,11 @@ in preprocessor
 transl-unit
     :entities []
 ~~~~~~~~~~~~~~~
+
+after unknown
+=============
+    @
+~~~~~~~~~~~~~
+transl-unit
+    :entities []
+~~~~~~~~~~~~~

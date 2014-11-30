@@ -1,6 +1,5 @@
 #include <assert.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 #include "clint.h"
 
@@ -322,13 +321,9 @@ static void check(void)
         if (lines[i].check)
         {
             if (actual != expected)
-            {
                 warn_at(&(location_t){i, expected}, indent_char == '\t' ?
                     "Expected indentation of %u tabs" :
                     "Expected indentation of %u spaces", expected);
-
-                // actual = expected;
-            }
 
             if (maximum_level && actual >= (maximum_level + 1) * indent_size)
                 warn_at(&(location_t){i, expected},

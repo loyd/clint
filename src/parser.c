@@ -19,15 +19,31 @@ static toknum_t current;
 static bool allow_eof;
 
 #define error(toknum, ...) error_at(&g_tokens[toknum].start, __VA_ARGS__)
-#define panic(...) (error(current, __VA_ARGS__), recover(recpoint))
+#define panic(...) (error(current, __VA_ARGS__), recover_last())
 
 
 ////////////////////
 // Recovery mode. //
 ////////////////////
 
-static jmp_buf recpoint;
-static jmp_buf eofpoint;
+static jmp_buf *recpoints;
+
+#define foothold(idx) process_orphans(setjmp(recpoints[idx]) == 0)
+#define recover(idx) longjmp(recpoints[idx], 1)
+#define recover_last() recover(vec_len(recpoints) - 1)
+
+
+static int push_recpoint(void)
+{
+    vec_expand_if_need((void **)&recpoints);
+    return vec_len(recpoints)++;
+}
+
+
+static void pop_recpoint(void)
+{
+    --vec_len(recpoints);
+}
 
 
 static struct {
@@ -35,9 +51,6 @@ static struct {
     void **vectors;
 } orphans = {NULL, NULL};
 
-
-#define foothold(point) process_orphans(setjmp(point) == 0)
-#define recover(point) longjmp(point, 1)
 
 static bool process_orphans(bool success)
 {
@@ -66,11 +79,15 @@ void init_parser(void)
 {
     assert(!g_tokens);
 
-    if (!orphans.trees)
+    if (!recpoints)
     {
+        recpoints = new_vec(jmp_buf, 1);
         orphans.trees = new_vec(tree_t, 50);
         orphans.vectors = new_vec(void *, 15);
     }
+
+    process_orphans(true);
+    vec_len(recpoints) = 0;
 
     init_lexer();
     g_tokens = new_vec(token_t, 4096);
@@ -82,7 +99,6 @@ void init_parser(void)
 
 static enum token_e peek(unsigned lookahead)
 {
-    assert(current < 2 || g_tokens[current-1].kind != TOK_EOF);
     unsigned required = current + lookahead;
 
     while (vec_len(g_tokens) < required)
@@ -91,7 +107,7 @@ static enum token_e peek(unsigned lookahead)
         pull_token(&token);
 
         if (token.kind == TOK_UNKNOWN)
-            recover(recpoint);
+            recover_last();
 
         // Skip preprocessor.
         while (token.kind == PN_HASH)
@@ -114,7 +130,7 @@ static enum token_e peek(unsigned lookahead)
             else
             {
                 error(vec_len(g_tokens) - 1, "Unexpected EOF");
-                recover(eofpoint);
+                recover(0);
             }
     }
 
@@ -1694,19 +1710,28 @@ static tree_t labeled_statement(void)
  */
 static tree_t compound_statement(void)
 {
-    tree_t *entities = new_tree_vec(8);
     toknum_t st = expect(PN_LBRACE);
+    tree_t *entities = new_tree_vec(8);
 
-    while (!accept(PN_RBRACE))
-        if (foothold(recpoint))
+    int recidx = push_recpoint();
+
+    for (;;)
+        if (foothold(recidx))
+        {
+            if (accept(PN_RBRACE))
+                break;
+
             vec_push(entities, starts_declaration(true) ? declaration()
                                                         : statement());
+        }
         else
         {
             while (!(next_is(PN_SEMI) || next_is(PN_RBRACE)))
                 consume();
             consume();
         }
+
+    pop_recpoint();
 
     return finish_block(st, entities);
 }
@@ -1884,23 +1909,30 @@ static tree_t translation_unit(void)
     toknum_t st = current;
     tree_t *entities = new_tree_vec(20);
 
-    if (foothold(eofpoint))
-        for (;;)
-        {
-            allow_eof = true;
-            if (peek(1) == TOK_EOF)
-                break;
-            allow_eof = false;
+    int eofidx = push_recpoint();
+    int recidx = push_recpoint();
 
-            if (foothold(recpoint))
+    if (foothold(eofidx))
+        for (;;)
+            if (foothold(recidx))
+            {
+                allow_eof = true;
+                if (peek(1) == TOK_EOF)
+                    break;
+                allow_eof = false;
+
                 vec_push(entities, declaration_or_fn_definition());
+            }
             else
             {
+                allow_eof = false;
                 while (!(next_is(PN_SEMI) || next_is(PN_RBRACE)))
                     consume();
                 consume();
             }
-        }
+
+    pop_recpoint();
+    pop_recpoint();
 
     return finish_transl_unit(st, entities);
 }

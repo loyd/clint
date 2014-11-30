@@ -57,8 +57,8 @@ extern void reset_state(void);
 extern void dispose_tree(tree_t tree);
 
 
-const char *stringify_type(enum type_e type);
-const char *stringify_kind(enum token_e kind);
+extern const char *stringify_type(enum type_e type);
+extern const char *stringify_kind(enum token_e kind);
 
 extern char *stringify_tree(void);
 extern char *stringify_tokens(void);
@@ -83,7 +83,9 @@ extern char *xstrdup(const char *src);
 #define new_vec(type, init_capacity) new_vec(sizeof(type), (init_capacity));
 #define vec_len(vec) (((size_t *)(void *)(vec))[-1])
 #define vec_push(vec, elem)                                                   \
-    *(vec_expand_if_need((void **)&(vec)), &vec[vec_len(vec)++]) = elem
+    (vec_expand_if_need((void **)&(vec)),                                     \
+     vec[vec_len(vec)] = (elem),                                              \
+     ++vec_len(vec))
 #define vec_pop(vec) vec[--vec_len(vec)]
 
 extern void *(new_vec)(size_t elem_sz, size_t init_capacity);
