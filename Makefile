@@ -4,8 +4,15 @@ CFLAGS := -pedantic -Werror -Wall -Wextra -Wshadow -Wundef -Wunreachable-code \
           -Winit-self -Wbad-function-cast -Wstrict-overflow=3 -Wpointer-arith \
           -Wold-style-definition -Wmissing-declarations -Wmissing-prototypes  \
           -Wstrict-prototypes -Wnested-externs -Wwrite-strings -Wwrite-strings\
-          -Wno-unused-parameter -Wno-logical-op-parentheses -Wno-dangling-else\
-          -Wno-missing-field-initializers
+          -Wno-unused-parameter -Wno-missing-field-initializers
+
+ifneq (,$(findstring clang,$(CC)))
+	CFLAGS += -Wno-logical-op-parentheses -Wno-dangling-else
+endif
+
+ifneq (,$(findstring gcc,$(CC)))
+	CFLAGS += -Wno-parentheses -Wno-sign-compare
+endif
 
 CFLAGS += -D_XOPEN_SOURCE=500
 CFLAGS += -Ideps/json-parser

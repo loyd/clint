@@ -35,6 +35,8 @@ static const char *stringify_json_type(json_type type)
         case json_boolean: return "boolean";
         case json_null:    return "null";
     }
+
+    assert(0);
 }
 
 

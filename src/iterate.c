@@ -343,6 +343,8 @@ static bool iterate_by_type_before_cb(const char *prop, enum item_e what,
             return ((tree_t)raw)->type == iterator.type ? iterator.cb(raw)
                                                         : true;
     }
+
+    assert(0);
 }
 
 

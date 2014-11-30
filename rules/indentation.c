@@ -99,11 +99,10 @@ static unsigned get_actual_indent(unsigned line)
 static unsigned get_expected_indent(unsigned line, unsigned actual)
 {
     assert(vec_len(indent_stack) > 0);
-    unsigned expected;
     int pops = lines[line].pop;
 
     while (pops--)
-        expected = vec_pop(indent_stack);
+        --vec_len(indent_stack);
 
     return indent_stack[vec_len(indent_stack) - 1];
 }
