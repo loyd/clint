@@ -4,8 +4,8 @@
 
 enum {NONE, DISALLOWED, REQUIRED};
 
-static int after_keyword = NONE;
-static int before_keyword = NONE;
+static int after_control = NONE;
+static int before_control = NONE;
 static int before_comma = NONE;
 static int after_comma = NONE;
 static int after_left_paren = NONE;
@@ -17,7 +17,7 @@ static int after_semicolon = NONE;
 static int require_block_on_newline = NONE;
 static int newline_before_members = NONE;
 static int newline_before_block = NONE;
-static int newline_before_else = NONE;
+static int newline_before_control = NONE;
 static int newline_before_fn_body = NONE;
 static int between_unary_and_operand = NONE;
 static int around_binary = NONE;
@@ -41,8 +41,8 @@ static void configure(json_value *config)
     if ((value = json_get(config, string, json_boolean)))                     \
         name = value->u.boolean + 1
 
-    bind_option(after_keyword,             "after-keyword");
-    bind_option(before_keyword,            "before-keyword");
+    bind_option(after_control,             "after-control");
+    bind_option(before_control,            "before-control");
     bind_option(before_comma,              "before-comma");
     bind_option(after_comma,               "after-comma");
     bind_option(after_left_paren,          "after-left-paren");
@@ -54,7 +54,7 @@ static void configure(json_value *config)
     bind_option(require_block_on_newline,  "require-block-on-newline");
     bind_option(newline_before_members,    "newline-before-members");
     bind_option(newline_before_block,      "newline-before-block");
-    bind_option(newline_before_else,       "newline-before-else");
+    bind_option(newline_before_control,    "newline-before-control");
     bind_option(newline_before_fn_body,    "newline-before-fn-body");
     bind_option(between_unary_and_operand, "between-unary-and-operand");
     bind_option(around_binary,             "around-binary");
@@ -189,21 +189,21 @@ static void check_tokens(void)
     for (toknum_t i = 2; i < vec_len(g_tokens) - 1; ++i)
         switch (g_tokens[i].kind)
         {
-            case KW_ELSE:
-                check_newline_before(i, newline_before_else, "keyword");
-            case KW_WHILE:
             case KW_DO:
+            case KW_ELSE:
+            case KW_WHILE:
             case KW_IF:
             case KW_FOR:
             case KW_SWITCH:
-                check_space_before(i, before_keyword, "keyword");
-                check_space_after(i, after_keyword, "keyword");
+                check_newline_before(i, newline_before_control, "control");
+                check_space_before(i, before_control, "control");
+                check_space_after(i, after_control, "control");
                 break;
 
             case KW_STRUCT:
             case KW_UNION:
             case KW_ENUM:
-                check_space_after(i, after_keyword, "keyword");
+                check_space_after(i, after_control, "keyword");
                 break;
 
             case PN_COMMA:

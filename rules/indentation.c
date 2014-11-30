@@ -292,7 +292,7 @@ static bool process_label(struct label_s *tree)
     return true;
 }
 
-
+#include <stdio.h>
 static void check(void)
 {
     lines = xcalloc(vec_len(g_lines), sizeof(*lines));
@@ -321,12 +321,12 @@ static void check(void)
         if (lines[i].check)
         {
             if (actual != expected)
-                warn_at(&(location_t){i, expected}, indent_char == '\t' ?
+                warn_at(&(location_t){i, actual}, indent_char == '\t' ?
                     "Expected indentation of %u tabs" :
                     "Expected indentation of %u spaces", expected);
 
             if (maximum_level && actual >= (maximum_level + 1) * indent_size)
-                warn_at(&(location_t){i, expected},
+                warn_at(&(location_t){i, actual},
                         "Nesting level should not exceed %d", maximum_level);
         }
 

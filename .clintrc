@@ -31,9 +31,9 @@
 
     "whitespace": {
         // After `while`, `do`, `if`, `else`, `for` and `switch`.
-        "after-keyword": true,
+        "after-control": true,
         // Before `while` and `else`.
-        "before-keyword": true,
+        "before-control": true,
         "before-comma": false,
         "after-comma": true,
         "after-left-paren": false,
@@ -46,7 +46,7 @@
         "require-block-on-newline": true,
         "newline-before-members": false,
         "newline-before-block": true,
-        "newline-before-else": true,
+        "newline-before-control": true,
         "newline-before-fn-body": true,
 
         "between-unary-and-operand": false,
@@ -65,7 +65,7 @@
     "block": {
         "disallow-empty": true,
         "disallow-short": true,
-        "disallow-oneline-if": true,
+        "disallow-oneline": true,
         "require-decls-on-top": true
     },
 
