@@ -14,6 +14,7 @@ ifneq (,$(findstring gcc,$(CC)))
 	CFLAGS += -Wno-parentheses -Wno-sign-compare
 endif
 
+CFLAGS += -DVERSION=\"$(shell cat VERSION)\"
 CFLAGS += -D_XOPEN_SOURCE=500
 CFLAGS += -Ideps/json-parser
 CFLAGS += -iquotesrc
@@ -35,4 +36,4 @@ src/%.o: src/%.c src/*.h
 
 .PHONY: clean
 clean:
-	$(RM) -f src/*.o clint run-test
+	$(RM) -f src/*.o clint run-test clint.exe run-test.exe

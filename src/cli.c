@@ -16,13 +16,14 @@ static enum {OK, IMPERFECT, MINOR_ERR, MAJOR_ERR} retval = OK;
 
 
 enum cmd_e {
-    CMD_HELP,
     CMD_CONFIG,
     CMD_SHORTLY,
     CMD_VERBOSE,
     CMD_NO_COLORS,
     CMD_TOKENIZE,
-    CMD_SHOW_TREE
+    CMD_SHOW_TREE,
+    CMD_HELP,
+    CMD_VERSION
 };
 
 
@@ -36,13 +37,14 @@ struct option_s {
 
 
 static struct option_s options[] = {
-    {CMD_HELP,       "help",      'h',  "This help information",         NULL},
     {CMD_CONFIG,     "config",    'c',  "Use FILE instead .clintrc",   "FILE"},
     {CMD_SHORTLY,    "shortly",   's',  "One-line output",               NULL},
     {CMD_VERBOSE,    "verbose",   'v',  "Output errors during run",      NULL},
     {CMD_NO_COLORS,  "no-colors",  0,   "Disable colors for output",     NULL},
-    {CMD_TOKENIZE,   "tokenize",   0,   "Tokenize file and show tokens", NULL},
-    {CMD_SHOW_TREE,  "show-tree",  0,   "Parse file and show tree",      NULL}
+    {CMD_TOKENIZE,   "tokenize",   0,   "Tokenize file and exit",        NULL},
+    {CMD_SHOW_TREE,  "show-tree",  0,   "Parse file and exit",           NULL},
+    {CMD_HELP,       "help",      'h',  "Display this help and exit",    NULL},
+    {CMD_VERSION,    "version",   'V',  "Output version and exit",       NULL}
 };
 
 static int num_options = sizeof(options)/sizeof(*options);
@@ -52,9 +54,10 @@ static void display_help(void)
 {
     static int brief_offset = 25;
 
-    printf("Usage: clint [OPTION]... [FILE]...\n"
+    printf("Usage:\n"
+           "  clint [OPTION]... [FILE]...\n\n"
            "Check style for the FILEs (the current directory by default).\n\n"
-           "Mandatory argument to long option is mandatory for short too.\n");
+           "Options:\n");
 
     for (int i = 0; i < num_options; ++i)
     {
@@ -73,10 +76,16 @@ static void display_help(void)
     }
 
     printf("\nExit status:\n"
-           " 0  if OK,\n"
-           " 1  if style warnings or (when --verbose) errors,\n"
-           " 2  if minor problems (e.g., cannot read file),\n"
-           " 3  if serious trouble (e.g., bad argument).\n");
+           "  0  if OK,\n"
+           "  1  if style warnings or (when --verbose) errors,\n"
+           "  2  if minor problems (e.g., cannot read file),\n"
+           "  3  if serious trouble (e.g., bad argument).\n");
+}
+
+
+static void display_version(void)
+{
+    printf("clint %s\n", VERSION);
 }
 
 
@@ -110,10 +119,6 @@ static void process_option(struct option_s *opt, const char *arg)
 
     switch (opt->id)
     {
-        case CMD_HELP:
-            display_help();
-            exit(OK);
-
         case CMD_CONFIG:
             config = arg;
             break;
@@ -129,6 +134,14 @@ static void process_option(struct option_s *opt, const char *arg)
         case CMD_SHOW_TREE:
             action = PARSE;
             break;
+
+        case CMD_HELP:
+            display_help();
+            exit(OK);
+
+        case CMD_VERSION:
+            display_version();
+            exit(OK);
 
         default:
             fprintf(stderr, "Option --%s isn't yet implemented, sorry.\n",
