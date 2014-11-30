@@ -108,9 +108,9 @@ extern void free_vec(void *vec);
  */
 //!@{
 enum log_mode_e {
-    LOG_NOTHING,
-    LOG_STYLE,
-    LOG_ALL
+    LOG_SILENCE = 1 << 0,
+    LOG_VERBOSE = 1 << 1,
+    LOG_SHORTLY = 1 << 2
 };
 
 

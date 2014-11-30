@@ -148,11 +148,11 @@ static inline unsigned get_line_len(unsigned line)
 }
 
 
-static enum log_mode_e log_mode = LOG_STYLE;
+static enum log_mode_e log_mode = 0;
 
-void set_log_mode(enum log_mode_e level)
+void set_log_mode(enum log_mode_e mode)
 {
-    log_mode = level;
+    log_mode |= mode;
 }
 
 
@@ -187,6 +187,15 @@ void add_log(bool style, unsigned line, unsigned column, const char *fmt, ...)
 
 static void print_error(error_t *error)
 {
+    if (log_mode & LOG_SHORTLY)
+    {
+        fprintf(stderr, MESSAGE_STYLE "%s" NORMAL_STYLE " at "
+                        FILENAME_STYLE "%s" NORMAL_STYLE " (%u:%u)\n",
+            error->message, g_filename, error->line, error->column);
+
+        return;
+    }
+
     assert(error->line < vec_len(g_lines));
     unsigned line_len, line_from, line_to, line_width;
 
@@ -234,14 +243,14 @@ static int compare_errors(error_t *a, error_t *b)
 
 void print_errors_in_order(int limit)
 {
-    if (!g_errors || log_mode == LOG_NOTHING)
+    if (!g_errors || log_mode & LOG_SILENCE)
         return;
 
     qsort(g_errors, vec_len(g_errors), sizeof(error_t),
         (int (*)(const void *, const void *))compare_errors);
 
     for (unsigned i = 0; i < vec_len(g_errors) && limit; ++i)
-        if (g_errors[i].stylistic || log_mode == LOG_ALL)
+        if (g_errors[i].stylistic || log_mode & LOG_VERBOSE)
         {
             print_error(&g_errors[i]);
             --limit;
