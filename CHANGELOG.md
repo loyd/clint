@@ -1,3 +1,9 @@
+## Version 0.5.2
+ * Performance improvement.
+ * Now errors in order.
+ * Option: --shortly.
+ * Option: --limit.
+
 ## Version 0.5.0
  * Implementation of the lexer.
  * Implementation of the parser.
