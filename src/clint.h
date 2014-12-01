@@ -108,24 +108,27 @@ extern void free_vec(void *vec);
  */
 //!@{
 enum log_mode_e {
-    LOG_SILENCE   = 1 << 0,
-    LOG_VERBOSE   = 1 << 1,
-    LOG_SHORTLY   = 1 << 2,
-    LOG_NO_COLORS = 1 << 3
+    LOG_SORTED  = 1 << 0,
+    LOG_SILENCE = 1 << 1,
+    LOG_VERBOSE = 1 << 2,
+    LOG_SHORTLY = 1 << 3,
+    LOG_COLOR   = 1 << 4
 };
 
+extern enum log_mode_e g_log_mode;
+extern unsigned        g_log_limit;
 
-extern void set_log_mode(enum log_mode_e level);
-extern bool print_errors_in_order(int limit);
 
 extern void add_log(bool stylistic, unsigned line, unsigned column,
     const char *fmt, ...) __attribute__((format(printf, 4, 5)));
-
 
 #define add_warn(...)          add_log(true, __VA_ARGS__)
 #define add_error(...)         add_log(false, __VA_ARGS__)
 #define add_warn_at(loc, ...)  add_warn((loc).line, (loc).column, __VA_ARGS__)
 #define add_error_at(loc, ...) add_error((loc).line, (loc).column, __VA_ARGS__)
+
+
+extern void print_errors_in_order(void);
 //!@}
 
 

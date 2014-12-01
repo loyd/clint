@@ -15,7 +15,6 @@
 static enum {OK, IMPERFECT, MINOR_ERR, MAJOR_ERR} retval = OK;
 static enum {TOKENIZE, PARSE, CHECK} action = CHECK;
 static const char *config = ".clintrc";
-static int limit = -1;
 
 
 enum cmd_e {
@@ -26,6 +25,7 @@ enum cmd_e {
     CMD_VERBOSE,
     CMD_TOKENIZE,
     CMD_SHOW_TREE,
+    CMD_UNSORTED,
     CMD_HELP,
     CMD_VERSION
 };
@@ -45,9 +45,10 @@ static struct option_s options[] = {
     {CMD_SHORTLY,    "shortly",   's',  "One-line output",               NULL},
     {CMD_CONFIG,     "config",    'c',  "Use FILE instead .clintrc",   "FILE"},
     {CMD_NO_COLORS,  "no-colors",  0,   "Disable colors for output",     NULL},
-    {CMD_VERBOSE,    "verbose",   'v',  "Output errors during run",      NULL},
+    {CMD_VERBOSE,    "verbose",   'v',  "Output errors during parsing",  NULL},
     {CMD_TOKENIZE,   "tokenize",   0,   "Tokenize file and exit",        NULL},
     {CMD_SHOW_TREE,  "show-tree",  0,   "Parse file and exit",           NULL},
+    {CMD_UNSORTED,   "unsorted",   0,   "Disable output sorting",        NULL},
     {CMD_HELP,       "help",      'h',  "Display this help and exit",    NULL},
     {CMD_VERSION,    "version",   'V',  "Output version and exit",       NULL}
 };
@@ -121,15 +122,20 @@ static void process_option(struct option_s *opt, const char *arg)
     switch (opt->id)
     {
         case CMD_LIMIT:
+        {
+            int limit;
             if (sscanf(arg, "%d", &limit) < 1 || limit < 0)
             {
                 fprintf(stderr, "Invalid argument of --%s.\n", opt->command);
                 exit(MAJOR_ERR);
             }
+
+            g_log_limit = limit;
             break;
+        }
 
         case CMD_SHORTLY:
-            set_log_mode(LOG_SHORTLY);
+            g_log_mode |= LOG_SHORTLY;
             break;
 
         case CMD_CONFIG:
@@ -137,11 +143,11 @@ static void process_option(struct option_s *opt, const char *arg)
             break;
 
         case CMD_NO_COLORS:
-            set_log_mode(LOG_NO_COLORS);
+            g_log_mode &= ~LOG_COLOR;
             break;
 
         case CMD_VERBOSE:
-            set_log_mode(LOG_VERBOSE);
+            g_log_mode |= LOG_VERBOSE;
             break;
 
         case CMD_TOKENIZE:
@@ -150,6 +156,10 @@ static void process_option(struct option_s *opt, const char *arg)
 
         case CMD_SHOW_TREE:
             action = PARSE;
+            break;
+
+        case CMD_UNSORTED:
+            g_log_mode &= ~LOG_SORTED;
             break;
 
         case CMD_HELP:
@@ -227,7 +237,10 @@ static int process_file(const char *fpath)
             retval = IMPERFECT;
     }
 
-    if (print_errors_in_order(limit) && retval == OK)
+    if (g_log_mode & LOG_SORTED)
+        print_errors_in_order();
+
+    if (g_errors && retval == OK)
         retval = IMPERFECT;
 
     printf("Done processing %s.\n", fpath);

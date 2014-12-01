@@ -119,6 +119,10 @@ void free_vec(void *vec)
 // Logging. //
 //////////////
 
+enum log_mode_e g_log_mode = LOG_SORTED|LOG_COLOR;
+unsigned g_log_limit = -1;
+
+
 static inline unsigned count_signs(unsigned num)
 {
     unsigned res = 0;
@@ -148,38 +152,6 @@ static inline unsigned get_line_len(unsigned line)
 }
 
 
-static enum log_mode_e log_mode = 0;
-
-void set_log_mode(enum log_mode_e mode)
-{
-    log_mode |= mode;
-}
-
-
-void add_log(bool style, unsigned line, unsigned column, const char *fmt, ...)
-{
-    va_list arg;
-    int len;
-    char *msg;
-
-    if (!g_errors)
-        g_errors = new_vec(error_t, 24);
-
-    va_start(arg, fmt);
-    len = vsnprintf(NULL, 0, fmt, arg);
-    va_end(arg);
-
-    if (len <= 0)
-        return;
-
-    msg = xmalloc(len + 1);
-    va_start(arg, fmt);
-    vsnprintf(msg, len + 1, fmt, arg);
-    va_end(arg);
-
-    vec_push(g_errors, ((error_t){style, line, column, msg}));
-}
-
 #ifdef _WIN32
 #   define MESSAGE_STYLE ""
 #   define FILENAME_STYLE ""
@@ -192,7 +164,7 @@ void add_log(bool style, unsigned line, unsigned column, const char *fmt, ...)
 
 static void print_error(error_t *error)
 {
-    if (log_mode & LOG_SHORTLY)
+    if (g_log_mode & LOG_SHORTLY)
     {
         fprintf(stderr, MESSAGE_STYLE "%s" NORMAL_STYLE " at "
                         FILENAME_STYLE "%s" NORMAL_STYLE " (%u:%u)\n",
@@ -239,6 +211,40 @@ static void print_error(error_t *error)
 }
 
 
+void add_log(bool style, unsigned line, unsigned column, const char *fmt, ...)
+{
+    va_list arg;
+    int len;
+    char *msg;
+
+    if (!(style || g_log_mode & LOG_VERBOSE))
+        return;
+
+    if (!g_errors)
+        g_errors = new_vec(error_t, 24);
+
+    if (vec_len(g_errors) >= g_log_limit)
+        return;
+
+    va_start(arg, fmt);
+    len = vsnprintf(NULL, 0, fmt, arg);
+    va_end(arg);
+
+    if (len <= 0)
+        return;
+
+    msg = xmalloc(len + 1);
+    va_start(arg, fmt);
+    vsnprintf(msg, len + 1, fmt, arg);
+    va_end(arg);
+
+    vec_push(g_errors, ((error_t){style, line, column, msg}));
+
+    if (!(g_log_mode & (LOG_SORTED|LOG_SILENCE)))
+        print_error(&g_errors[vec_len(g_errors) - 1]);
+}
+
+
 static int compare_errors(error_t *a, error_t *b)
 {
     int res = a->line - b->line;
@@ -246,23 +252,14 @@ static int compare_errors(error_t *a, error_t *b)
 }
 
 
-bool print_errors_in_order(int limit)
+void print_errors_in_order(void)
 {
-    bool has_errors = false;
-
-    if (!g_errors || log_mode & LOG_SILENCE)
-        return has_errors;
+    if (!g_errors || g_log_mode & LOG_SILENCE)
+        return;
 
     qsort(g_errors, vec_len(g_errors), sizeof(error_t),
         (int (*)(const void *, const void *))compare_errors);
 
-    for (unsigned i = 0; i < vec_len(g_errors) && limit; ++i)
-        if (g_errors[i].stylistic || log_mode & LOG_VERBOSE)
-        {
-            has_errors = true;
-            print_error(&g_errors[i]);
-            --limit;
-        }
-
-    return has_errors;
+    for (unsigned i = 0; i < vec_len(g_errors); ++i)
+        print_error(&g_errors[i]);
 }
