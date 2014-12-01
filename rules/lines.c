@@ -4,7 +4,7 @@
 #include "clint.h"
 
 // Defaults settings.
-static int maximum_length = 0;
+static unsigned maximum_length = -1;
 static bool disallow_trailing_space = false;
 static bool require_newline_at_eof = false;
 
@@ -25,7 +25,7 @@ static void configure(json_value *config)
 }
 
 
-static int get_line_len(unsigned line)
+static unsigned get_line_size(unsigned line)
 {
     if (line + 1 == vec_len(g_lines))
         return strlen(g_lines[line].start);
@@ -34,19 +34,32 @@ static int get_line_len(unsigned line)
 }
 
 
+static unsigned get_line_len(unsigned line, unsigned size)
+{
+    unsigned len = 0;
+    char *start = g_lines[line].start;
+
+    for (unsigned i = 0; i < size; ++i)
+        if ((start[i] & 0xc0) != 0x80)
+            ++len;
+
+    return len;
+}
+
+
 static void check(void)
 {
     unsigned line = 0;
-    int len;
+    unsigned size;
 
     for (; line < vec_len(g_lines); ++line)
     {
-        if ((len = get_line_len(line)) == 0)
+        if ((size = get_line_size(line)) == 0)
             continue;
 
-        if (disallow_trailing_space && isspace(g_lines[line].start[len-1]))
+        if (disallow_trailing_space && isspace(g_lines[line].start[size-1]))
         {
-            int column = len - 1;
+            unsigned column = size - 1;
 
             while (column && isspace(g_lines[line].start[column]))
                 --column;
@@ -54,14 +67,14 @@ static void check(void)
             add_warn(line, column + 1, "Trailing witespaces are disallowed");
         }
 
-        if (maximum_length && len > maximum_length)
-            add_warn(line, maximum_length, "Line must be at most %d characters",
-                     maximum_length);
+        if (size > maximum_length && get_line_len(line, size) > maximum_length)
+            add_warn(line, maximum_length,
+                     "Line must be at most %d characters", maximum_length);
     }
 
     if (require_newline_at_eof)
-        if (len > 0)
-            add_warn(line - 1, len, "Required newline at eof.");
+        if (size > 0)
+            add_warn(line - 1, size, "Required newline at eof.");
 }
 
 
