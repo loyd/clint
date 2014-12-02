@@ -185,31 +185,31 @@ static bool accept(const char *fpath)
 }
 
 
-#define CHECK(x) if (!(x)) goto error
+#define OK(x) if (!(x)) goto error
 
-static int process_file(const char *fpath)
+static void process_file(const char *fpath)
 {
     FILE *fp;
     int size;
 
     if (!accept(fpath))
-        return 0;
+        return;
 
     g_filename = xstrdup(fpath);
 
-    CHECK(fp = fopen(fpath, "r"));
+    OK(fp = fopen(fpath, "rb"));
 
     // Determine the size.
-    CHECK(!fseek(fp, 0, SEEK_END));
-    CHECK((size = ftell(fp)) >= 0);
-    CHECK(!fseek(fp, 0, SEEK_SET));
+    OK(!fseek(fp, 0, SEEK_END));
+    OK((size = ftell(fp)) >= 0);
+    OK(!fseek(fp, 0, SEEK_SET));
 
     // Read all content from the file.
     g_data = xmalloc(size + 1);
-    CHECK(fread(g_data, 1, size, fp) == (size_t)size);
+    OK(fread(g_data, 1, size, fp) == (size_t)size);
     g_data[size] = '\0';
 
-    CHECK(fclose(fp) != EOF);
+    OK(fclose(fp) != EOF);
 
     // Do something.
     if (action == TOKENIZE)
@@ -245,15 +245,12 @@ static int process_file(const char *fpath)
 
     printf("Done processing %s.\n", fpath);
     reset_state();
-    errno = 0;
-    return 0;
+    return;
 
 error:
     fprintf(stderr, "%s: %s.\n", fpath, strerror(errno));
     retval = MINOR_ERR;
     reset_state();
-    errno = 0;
-    return 0;
 }
 
 
@@ -261,8 +258,7 @@ static void tree_walk(const char *path)
 {
     struct stat fstat;
 
-    if (stat(path, &fstat))
-        goto error;
+    OK(!stat(path, &fstat));
 
     if (S_ISREG(fstat.st_mode))
     {
@@ -274,9 +270,7 @@ static void tree_walk(const char *path)
         return;
 
     DIR *dir = opendir(path);
-
-    if (!dir)
-        goto error;
+    OK(dir);
 
     for (;;)
     {
@@ -294,9 +288,7 @@ static void tree_walk(const char *path)
         tree_walk(fpath);
     }
 
-    if (closedir(dir))
-        goto error;
-
+    OK(!closedir(dir));
     return;
 
 error:
@@ -312,19 +304,19 @@ static void load_config(void)
     char *data;
     char errbuf[512];
 
-    CHECK(fp = fopen(config, "r"));
+    OK(fp = fopen(config, "r"));
 
     // Determine the size.
-    CHECK(!fseek(fp, 0, SEEK_END));
-    CHECK((size = ftell(fp)) >= 0);
-    CHECK(!fseek(fp, 0, SEEK_SET));
+    OK(!fseek(fp, 0, SEEK_END));
+    OK((size = ftell(fp)) >= 0);
+    OK(!fseek(fp, 0, SEEK_SET));
 
     // Read all content from the file.
     data = xmalloc(size + 1);
     data[size] = '\0';
 
-    CHECK(fread(data, 1, size, fp) == (size_t)size);
-    CHECK(fclose(fp) != EOF);
+    OK(fread(data, 1, size, fp) == (size_t)size);
+    OK(fclose(fp) != EOF);
 
     // Parse file as json.
     g_config = json_parse_ex(&(json_settings){
