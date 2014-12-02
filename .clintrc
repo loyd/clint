@@ -20,6 +20,8 @@
     "lines": {
         "maximum-length": 80,
         "disallow-trailing-space": true,
+        // \n, \r\n or \n
+        // "require-line-break": "\n",
         "require-newline-at-eof": true
     },
 
