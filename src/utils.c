@@ -151,23 +151,76 @@ static inline unsigned get_line_len(unsigned line)
 
 
 #ifdef _WIN32
-#   define MESSAGE_STYLE ""
-#   define FILENAME_STYLE ""
-#   define NORMAL_STYLE ""
+#include <windows.h>
+//#TODO: add checking support for ANSI colors.
+
+static HANDLE console = NULL;
+static CONSOLE_SCREEN_BUFFER_INFO console_info;
+static WORD saved_attrs;
+
+static void print_with_attr(char *str, int attr)
+{
+    if (!console)
+        console = GetStdHandle(STD_OUTPUT_HANDLE);
+
+    GetConsoleScreenBufferInfo(console, &console_info);
+    saved_attrs = console_info.wAttributes;
+
+    SetConsoleTextAttribute(console, attr);
+    fprintf(stderr, "%s", str);
+    SetConsoleTextAttribute(console, saved_attrs);
+}
+
+
+static void print_filename(char *filename)
+{
+    print_with_attr(filename, FOREGROUND_GREEN);
+}
+
+
+static void print_message(char *message)
+{
+    print_with_attr(message,
+        FOREGROUND_RED|FOREGROUND_GREEN|FOREGROUND_BLUE|FOREGROUND_INTENSITY);
+}
+
+
+static void print_pointer(char *pointer)
+{
+    print_with_attr(pointer, FOREGROUND_INTENSITY);
+    fprintf(stderr, "\n");
+}
+
 #else
-#   define MESSAGE_STYLE   "\x1b[1m"
-#   define FILENAME_STYLE  "\x1b[32;1m"
-#   define NORMAL_STYLE    "\x1b[0m"
+//#TODO: add checking `isatty`.
+
+static void print_filename(char *filename)
+{
+    fprintf(stderr, "\x1b[32;1m%s\x1b[0m", filename);
+}
+
+
+static void print_message(char *message)
+{
+    fprintf(stderr, "\x1b[1m%s\x1b[0m", message);
+}
+
+
+static void print_pointer(char *pointer)
+{
+    fprintf(stderr, "\x1b[30;1m%s\x1b[0m\n", pointer);
+}
 #endif
+
 
 static void print_error(error_t *error)
 {
     if (g_log_mode & LOG_SHORTLY)
     {
-        fprintf(stderr, MESSAGE_STYLE "%s" NORMAL_STYLE " at "
-                        FILENAME_STYLE "%s" NORMAL_STYLE " (%u:%u)\n",
-            error->message, g_filename, error->line, error->column);
-
+        print_message(error->message);
+        fprintf(stderr, " at ");
+        print_filename(g_filename);
+        fprintf(stderr, " (%u:%u)\n", error->line, error->column);
         return;
     }
 
@@ -190,19 +243,17 @@ static void print_error(error_t *error)
     pointer[sizeof(pointer) - 2] = '^';
     pointer[sizeof(pointer) - 1] = '\0';
 
-    fprintf(stderr, "%s%s", MESSAGE_STYLE, error->message);
-
-    if (g_filename)
-        fprintf(stderr, "%s%s", NORMAL_STYLE " at " FILENAME_STYLE, g_filename);
-
-    fprintf(stderr, NORMAL_STYLE ":\n");
+    print_message(error->message);
+    fprintf(stderr, " at ");
+    print_filename(g_filename);
+    fprintf(stderr, ":\n");
 
     for (unsigned i = line_from; i <= line_to; ++i)
     {
         fprintf(stderr, "  %*d | %.*s\n", line_width, i + 1, get_line_len(i),
                                           g_lines[i].start);
         if (i == error->line)
-            fprintf(stderr, "%s\n", pointer);
+            print_pointer(pointer);
     }
 
     fprintf(stderr, "\n");
