@@ -158,58 +158,45 @@ static HANDLE console = NULL;
 static CONSOLE_SCREEN_BUFFER_INFO console_info;
 static WORD saved_attrs;
 
-static void print_with_attr(char *str, int attr)
+static void print_with_attr(const char *str, int attr)
 {
-    if (!console)
-        console = GetStdHandle(STD_OUTPUT_HANDLE);
+    if (g_log_mode & LOG_COLOR)
+    {
+        if (!console)
+            console = GetStdHandle(STD_OUTPUT_HANDLE);
 
-    GetConsoleScreenBufferInfo(console, &console_info);
-    saved_attrs = console_info.wAttributes;
+        GetConsoleScreenBufferInfo(console, &console_info);
+        saved_attrs = console_info.wAttributes;
 
-    SetConsoleTextAttribute(console, attr);
-    fprintf(stderr, "%s", str);
-    SetConsoleTextAttribute(console, saved_attrs);
+        SetConsoleTextAttribute(console, attr);
+        fprintf(stderr, "%s", str);
+        SetConsoleTextAttribute(console, saved_attrs);
+    }
+    else
+        fprintf(stderr, "%s", str);
 }
 
 
-static void print_filename(char *filename)
-{
-    print_with_attr(filename, FOREGROUND_GREEN);
-}
-
-
-static void print_message(char *message)
-{
-    print_with_attr(message,
-        FOREGROUND_RED|FOREGROUND_GREEN|FOREGROUND_BLUE|FOREGROUND_INTENSITY);
-}
-
-
-static void print_pointer(char *pointer)
-{
-    print_with_attr(pointer, FOREGROUND_INTENSITY);
-    fprintf(stderr, "\n");
-}
+#define print_filename(str) print_with_attr(str, FOREGROUND_GREEN)
+#define print_pointer(str)  print_with_attr(str, FOREGROUND_INTENSITY)
+#define print_message(str)  print_with_attr(str,                              \
+    FOREGROUND_RED|FOREGROUND_GREEN|FOREGROUND_BLUE|FOREGROUND_INTENSITY)
 
 #else
 //#TODO: add checking `isatty`.
 
-static void print_filename(char *filename)
+static void print_with_ansi(const char *str, const char *style)
 {
-    fprintf(stderr, "\x1b[32;1m%s\x1b[0m", filename);
+    if (g_log_mode & LOG_COLOR)
+        fprintf(stderr, "\x1b[%sm%s\x1b[0m", style, str);
+    else
+        fprintf(stderr, "%s", str);
 }
 
 
-static void print_message(char *message)
-{
-    fprintf(stderr, "\x1b[1m%s\x1b[0m", message);
-}
-
-
-static void print_pointer(char *pointer)
-{
-    fprintf(stderr, "\x1b[30;1m%s\x1b[0m\n", pointer);
-}
+#define print_filename(str) print_with_ansi(str, "32;1")
+#define print_message(str)  print_with_ansi(str, "1")
+#define print_pointer(str)  print_with_ansi(str, "30;1")
 #endif
 
 
@@ -253,7 +240,10 @@ static void print_error(error_t *error)
         fprintf(stderr, "  %*d | %.*s\n", line_width, i + 1, get_line_len(i),
                                           g_lines[i].start);
         if (i == error->line)
+        {
             print_pointer(pointer);
+            fprintf(stderr, "\n");
+        }
     }
 
     fprintf(stderr, "\n");
