@@ -35,7 +35,7 @@ void init_lexer(void)
     assert(!g_lines);
 
     g_lines = new_vec(line_t, 128);
-    vec_push(g_lines, ((line_t){g_data, false}));
+    vec_push(g_lines, ((line_t){g_data, 0, false}));
 
     ch = g_data;
     parsing_header_name = false;
@@ -110,12 +110,36 @@ static inline enum token_e find_pp(const char *word, int len)
 //!@}
 
 
+static inline unsigned get_column(const char *c)
+{
+    return c - g_lines[vec_len(g_lines) - 1].start;
+}
+
+
+static int is_nel(const char *c)
+{
+    if (*c == '\n')
+        return 1;
+
+    if (*c == '\r')
+        return c[1] == '\n' ? 2 : 1;
+
+    return 0;
+}
+
 static void eat(int num)
 {
     assert(num > 0);
+    int nel;
 
-    if (*ch == '\n')
-        vec_push(g_lines, ((line_t){ch + 1, false}));
+    if ((nel = is_nel(ch)))
+    {
+        g_lines[vec_len(g_lines) - 1].length = get_column(ch);
+        vec_push(g_lines, ((line_t){ch + nel, 0, false}));
+
+        if (nel > 1)
+            ++ch;
+    }
 
     // Frequent case.
     if (num == 1 && ch[1] != '\\')
@@ -133,14 +157,18 @@ static void eat(int num)
         while (*++ch == '\\')
         {
             while (isspace(ch[1]))
-                if (*++ch == '\n')
+                if (is_nel(++ch))
                     break;
 
-            if (*ch != '\n')
+            if (!(nel = is_nel(ch)))
                 break;
 
-            g_lines[vec_len(g_lines)-1].dangling = true;
-            vec_push(g_lines, ((line_t){ch + 1, false}));
+            g_lines[vec_len(g_lines) - 1].dangling = true;
+            g_lines[vec_len(g_lines) - 1].length = get_column(ch);
+            vec_push(g_lines, ((line_t){ch + nel, 0, false}));
+
+            if (nel > 1)
+                ++ch;
         }
     while (--num);
 }
@@ -224,7 +252,7 @@ static bool char_const(token_t *token)
     assert(*ch == '\'' ||  *ch == 'L' && ch[1] == '\'');
 
     eat(*ch == 'L' ? 2 : 1);
-    while (*ch && *ch != '\n' && *ch != '\'')
+    while (*ch && !is_nel(ch) && *ch != '\'')
     {
         if (*ch == '\\')
             eat(1);
@@ -252,7 +280,7 @@ static bool string_literal(token_t *token)
     assert(*ch == '"' ||  *ch == 'L' && ch[1] == '"');
 
     eat(*ch == 'L' ? 2 : 1);
-    while (*ch && *ch != '\n' && *ch != '"')
+    while (*ch && !is_nel(ch) && *ch != '"')
     {
         if (*ch == '\\')
             eat(1);
@@ -448,7 +476,7 @@ static bool comment(token_t *token)
         eat(1);
     }
     else
-        while (*ch && *ch != '\n')
+        while (*ch && !is_nel(ch))
             eat(1);
 
     token->kind = TOK_COMMENT;
@@ -468,7 +496,7 @@ static bool header_name(token_t *token)
 
     do
         eat(1);
-    while (*ch && *ch != '\n' && *ch != expected);
+    while (*ch && !is_nel(ch) && *ch != expected);
 
     if (*ch != expected)
         return error("Unexpected %s while parsing header name",
@@ -490,7 +518,7 @@ void pull_token(token_t *token)
 
     token->start.pos = ch;
     token->start.line = vec_len(g_lines) - 1;
-    token->start.column = ch - g_lines[vec_len(g_lines) - 1].start;
+    token->start.column = get_column(ch);
 
     switch (*ch)
     {
@@ -597,12 +625,15 @@ void pull_token(token_t *token)
             break;
     }
 
+    if (!*ch)
+        g_lines[vec_len(g_lines) - 1].length = get_column(ch);
+
     if (!success)
         token->kind = TOK_UNKNOWN;
 
     token->end.pos = ch - 1;
     token->end.line = vec_len(g_lines) - 1;
-    token->end.column = ch - g_lines[vec_len(g_lines) - 1].start - 1;
+    token->end.column = get_column(ch - 1);
 }
 
 

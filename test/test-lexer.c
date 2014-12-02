@@ -264,13 +264,23 @@ void test_lexer(void)
     test("backslash + newline");
     {
         assert(check("a\\\nb", ((T){TOK_IDENTIFIER})));
+        assert(check("a\\\rb", ((T){TOK_IDENTIFIER})));
+        assert(check("a\\\r\nb", ((T){TOK_IDENTIFIER})));
         assert(check("a\\  \nb", ((T){TOK_IDENTIFIER})));
+        assert(check("a\\  \r\nb", ((T){TOK_IDENTIFIER})));
         assert(check("\"a\\\nb\"", ((T){TOK_STRING})));
+        assert(check("\"a\\\r\nb\"", ((T){TOK_STRING})));
         assert(check("'\\\\\n0'", ((T){TOK_CHAR_CONST})));
+        assert(check("'\\\\\r\n0'", ((T){TOK_CHAR_CONST})));
         assert(check("'\\\\  \n0'", ((T){TOK_CHAR_CONST})));
+        assert(check("'\\\\  \r\n0'", ((T){TOK_CHAR_CONST})));
         assert(check("1000  \\   \n + \\\n 20",
             ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
+        assert(check("1000  \\   \r\n + \\\r\n 20",
+            ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
         assert(check("1+ \\\n\\\n\\\n 2",
+            ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
+        assert(check("1+ \\\r\n\\\r\n\\\r\n 2",
             ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
     }
 }

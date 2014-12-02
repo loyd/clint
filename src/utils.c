@@ -142,13 +142,11 @@ static inline unsigned get_line_len(unsigned line)
 {
     assert(line < vec_len(g_lines));
 
-    if (line+1 == vec_len(g_lines))
-    {
-        char *nl = strchr(g_lines[line].start, '\n');
-        return nl ? nl - g_lines[line].start : strlen(g_lines[line].start);
-    }
+    if (g_lines[line].length)
+        return g_lines[line].length;
 
-    return g_lines[line+1].start - g_lines[line].start - 1;
+    // The following line isn't parsed.
+    return strpbrk(g_lines[line].start, "\n\r\0") - g_lines[line].start;
 }
 
 

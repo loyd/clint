@@ -8,7 +8,7 @@
 
 int main(void)
 {
-    set_log_mode(LOG_SILENCE);
+    g_log_mode |= LOG_SILENCE;
 
     test_lexer();
     test_parser();

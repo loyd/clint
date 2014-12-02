@@ -17,8 +17,9 @@
 
 
 typedef struct {
-    char *start;    //!< Place within `g_data`.
-    bool dangling;  //!< w/ backslash + newline.
+    char *start;        //!< Place within `g_data`.
+    unsigned length;    //!< The length w/o line break.
+    bool dangling;      //!< w/ backslash + newline.
 } line_t;
 
 
