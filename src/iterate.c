@@ -102,6 +102,7 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
             token(fnspec);
             tokens(quals);
             node(dirtype);
+            nodes(attrs);
             break;
         }
         case DECLARATOR:
@@ -111,6 +112,7 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
             token(name);
             node(init);
             node(bitsize);
+            nodes(attrs);
             break;
         }
         case FUNCTION_DEF:
@@ -128,6 +130,19 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
             struct parameter_s *tree = raw;
             node(specs);
             node(decl);
+            break;
+        }
+        case ATTRIBUTE:
+        {
+            struct attribute_s *tree = raw;
+            nodes(attribs);
+            break;
+        }
+        case ATTRIB:
+        {
+            struct attrib_s *tree = raw;
+            token(name);
+            nodes(args);
             break;
         }
         case ID_TYPE:
@@ -381,13 +396,13 @@ const char *stringify_type(enum type_e type)
 {
     static const char *words[] = {
         "transl-unit", "empty", "declaration", "specifiers", "declarator",
-        "function-def", "parameter", "type-name", "id-type", "struct", "union",
-        "enum", "enumerator", "pointer", "array", "function", "block", "if",
-        "switch", "while", "do-while", "for", "goto", "break", "continue",
-        "return", "label", "default", "case", "constant", "identifier",
-        "special", "accessor", "comma", "call", "cast", "conditional",
-        "subscript", "unary", "binary", "assignment", "comp-literal",
-        "comp-member"
+        "function-def", "parameter", "type-name", "attribute", "attrib",
+        "id-type", "struct", "union", "enum", "enumerator", "pointer", "array",
+        "function", "block", "if", "switch", "while", "do-while", "for", "goto",
+        "break", "continue", "return", "label", "default", "case", "constant",
+        "identifier", "special", "accessor", "comma", "call", "cast",
+        "conditional", "subscript", "unary", "binary", "assignment",
+        "comp-literal", "comp-member"
     };
 
     assert(0 <= type && type < sizeof(words)/sizeof(*words));

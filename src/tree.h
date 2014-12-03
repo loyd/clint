@@ -15,11 +15,14 @@ enum type_e {
 
     // Declarations.
     DECLARATION,        // {specs*, decls*[]}
-    SPECIFIERS,         // {#storage*, #fnspec*, #quals*[], dirtype*}
-    DECLARATOR,         // {indtype*, #name*, init*, bitsize*}
+    SPECIFIERS,         // {#storage*, #fnspec*, #quals*[], dirtype*, attrs*[]}
+    DECLARATOR,         // {indtype*, #name*, init*, bitsize*, attrs*[]}
     FUNCTION_DEF,       // {specs, decl, old_decls*[], body}
     PARAMETER,          // {specs*, decl*} (decl can be ellipsis)
     TYPE_NAME,          // {specs*, decl*} (abstract decl)
+
+    ATTRIBUTE,          // {attribs*[]}
+    ATTRIB,             // {name, args*[]}
 
     // Direct types.
     ID_TYPE,            // {#names[]}
@@ -105,6 +108,7 @@ struct specifiers_s {
     toknum_t fnspec;
     toknum_t *quals;
     tree_t dirtype;
+    tree_t *attrs;
 };
 
 
@@ -114,6 +118,7 @@ struct declarator_s {
     toknum_t name;
     tree_t init;
     tree_t bitsize;
+    tree_t *attrs;
 };
 
 
@@ -140,6 +145,19 @@ struct type_name_s {
 };
 
 
+struct attribute_s {
+    TREE_FIELDS;
+    tree_t *attribs;
+};
+
+
+struct attrib_s {
+    TREE_FIELDS;
+    toknum_t name;
+    tree_t *args;
+};
+
+
 struct id_type_s {
     TREE_FIELDS;
     toknum_t *names;
@@ -152,11 +170,13 @@ struct struct_s {
     tree_t *members;
 };
 
+
 struct union_s {
     TREE_FIELDS;
     toknum_t name;
     tree_t *members;
 };
+
 
 struct enum_s {
     TREE_FIELDS;

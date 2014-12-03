@@ -1714,6 +1714,7 @@ declaration specifiers
 ======================
     typedef int x;
     int typedef y;
+    custom_t static z;
     const int const i;
     inline int i();
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -1736,6 +1737,15 @@ transl-unit
             :decls [
                 declarator
                     :name (y)
+            ]
+        declaration
+            :specs specifiers
+                :storage (static)
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :name (z)
             ]
         declaration
             :specs specifiers
@@ -2451,6 +2461,145 @@ transl-unit
             ]
     ]
 ~~~~~~~~~~~
+
+
+[attributes]
+
+within specifiers
+=================
+    __attribute__((aligned(8))) char f;
+    custom_t __attribute__((aligned(8))) f;
+    char *__attribute__((aligned(8))) f;
+    custom_t *__attribute__((aligned(8))) f;
+~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(char)]
+                :attrs [
+                    attribute
+                        :attribs [
+                            attrib
+                                :name (aligned)
+                                :args [
+                                    constant
+                                        :value (8)
+                                ]
+                        ]
+                ]
+            :decls [
+                declarator
+                    :name (f)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+                :attrs [
+                    attribute
+                        :attribs [
+                            attrib
+                                :name (aligned)
+                                :args [
+                                    constant
+                                        :value (8)
+                                ]
+                        ]
+                ]
+            :decls [
+                declarator
+                    :name (f)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(char)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :specs specifiers
+                            :attrs [
+                                attribute
+                                    :attribs [
+                                        attrib
+                                            :name (aligned)
+                                            :args [
+                                                constant
+                                                    :value (8)
+                                            ]
+                                    ]
+                            ]
+                    :name (f)
+            ]
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decls [
+                declarator
+                    :indtype pointer
+                        :specs specifiers
+                            :attrs [
+                                attribute
+                                    :attribs [
+                                        attrib
+                                            :name (aligned)
+                                            :args [
+                                                constant
+                                                    :value (8)
+                                            ]
+                                    ]
+                            ]
+                    :name (f)
+            ]
+    ]
+~~~~~~~~~~~~~~~~~
+
+after declarator
+================
+    void add_log(char *fmt, ...) __attribute__((format(printf, 1, 2)));
+~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        declaration
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decls [
+                declarator
+                    :indtype function
+                        :params [
+                            parameter
+                                :specs specifiers
+                                    :dirtype id-type
+                                        :names [(char)]
+                                :decl declarator
+                                    :indtype pointer
+                                    :name (fmt)
+                            special
+                                :value (...)
+                        ]
+                    :name (add_log)
+                    :attrs [
+                        attribute
+                            :attribs [
+                                attrib
+                                    :name (format)
+                                    :args [
+                                        identifier
+                                            :value (printf)
+                                        constant
+                                            :value (1)
+                                        constant
+                                            :value (2)
+                                    ]
+                            ]
+                    ]
+            ]
+    ]
+~~~~~~~~~~~~~~~~
 
 
 [error recovery]

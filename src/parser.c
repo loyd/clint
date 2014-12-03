@@ -15,6 +15,7 @@
 //#TODO: support for comments.
 //#TODO: preprocessor.
 //#TODO: GC for vectors.
+//#TODO: complete support for attributes.
 
 static toknum_t current;
 static bool allow_eof;
@@ -164,9 +165,28 @@ static toknum_t accept(enum token_e kind)
 static toknum_t expect(enum token_e kind)
 {
     if (!next_is(kind))
-        panic("Expected \"%s\"", stringify_kind(kind));
+        if (kind == TOK_IDENTIFIER)
+            panic("Expected identifier");
+        else
+            panic("Expected \"%s\"", stringify_kind(kind));
 
     return consume();
+}
+
+
+static toknum_t expect_word(void)
+{
+#define XX(kind, word) case kind:
+    switch (peek(1))
+    {
+        case TOK_IDENTIFIER:
+            TOK_KW_MAP(XX)
+            return consume();
+
+        default:
+            panic("Expected keyword or identifier");
+    }
+#undef XX
 }
 
 
@@ -222,11 +242,11 @@ static tree_t finish_declaration(toknum_t st, tree_t specs, tree_t *decls)
 
 
 static tree_t finish_specifiers(toknum_t st, toknum_t storage, toknum_t fnspec,
-                                toknum_t *quals, tree_t dirtype)
+                                toknum_t *quals, tree_t dirtype, tree_t *attrs)
 {
     struct specifiers_s *res = xmalloc(sizeof(*res));
     *res = (struct specifiers_s){
-        T(SPECIFIERS), storage, fnspec, quals, dirtype
+        T(SPECIFIERS), storage, fnspec, quals, dirtype, attrs
     };
 
     return finish(st, res);
@@ -234,10 +254,12 @@ static tree_t finish_specifiers(toknum_t st, toknum_t storage, toknum_t fnspec,
 
 
 static tree_t finish_declarator(toknum_t st, tree_t indtype, toknum_t name,
-                                tree_t init, tree_t bitsize)
+                                tree_t init, tree_t bitsize, tree_t *attrs)
 {
     struct declarator_s *res = xmalloc(sizeof(*res));
-    *res = (struct declarator_s){T(DECLARATOR), indtype, name, init, bitsize};
+    *res = (struct declarator_s){
+        T(DECLARATOR), indtype, name, init, bitsize, attrs
+    };
     return finish(st, res);
 }
 
@@ -267,6 +289,23 @@ static tree_t finish_type_name(toknum_t st, tree_t specs, tree_t decl)
 {
     struct type_name_s *res = xmalloc(sizeof(*res));
     *res = (struct type_name_s){T(TYPE_NAME), specs, decl};
+    return finish(st, res);
+}
+
+
+static tree_t finish_attribute(toknum_t st, tree_t *attribs)
+{
+    struct attribute_s *res = xmalloc(sizeof(*res));
+    *res = (struct attribute_s){T(ATTRIBUTE), attribs};
+    return finish(st, res);
+}
+
+
+static tree_t finish_attrib(toknum_t st, toknum_t name, tree_t *args)
+{
+    assert(name);
+    struct attrib_s *res = xmalloc(sizeof(*res));
+    *res = (struct attrib_s){T(ATTRIB), name, args};
     return finish(st, res);
 }
 
@@ -622,7 +661,7 @@ static bool starts_declaration(bool agressive)
                         // "X *)" is are always declaration.
                         case PN_RPAREN:
                         // Sequence of pointers.
-                        case PN_STAR:
+                        case PN_STAR: case KW_ATTRIBUTE:
                         case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
                             return true;
 
@@ -632,7 +671,7 @@ static bool starts_declaration(bool agressive)
 
                     return agressive;
 
-                case TOK_IDENTIFIER: case KW_TYPEDEF:
+                case TOK_IDENTIFIER: case KW_TYPEDEF: case KW_ATTRIBUTE:
                 case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:
                 case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
                     return true;
@@ -654,6 +693,8 @@ static bool starts_declaration(bool agressive)
         case KW_STRUCT: case KW_UNION: case KW_ENUM:
         // Function specifier.
         case KW_INLINE:
+        // Attributes.
+        case KW_ATTRIBUTE:
             return true;
 
         default:
@@ -692,6 +733,10 @@ static tree_t iteration_statement(void);
 static tree_t jump_statement(void);
 
 static tree_t translation_unit(void);
+
+// GNU extensions.
+static tree_t *attributes(void);
+static tree_t attribute(void);
 
 
 //////////////////
@@ -1036,8 +1081,7 @@ static inline tree_t constant_expression(void)
  *     declaration-specifiers [init-declarator-list] ";"
  *
  * C99 6.7 init-declarator-list:
- *     init-declarator
- *     init-declarator-list "," init-declarator
+ *     [init-declarator-list ","] init-declarator
  */
 static tree_t declaration(void)
 {
@@ -1074,6 +1118,9 @@ static tree_t declaration_inner(tree_t specs, tree_t first_declarator)
  *     type-qualifier [declaration-specifiers]
  *     function-specifier [declaration-specifiers]
  *
+ * GNU declaration-specifiers:
+ *     attributes [declaration-specifiers]
+ *
  * C99 6.7.1 storage-class-specifier:
  *     "typedef" | "extern" | "static" | "auto" | "register"
  *
@@ -1097,9 +1144,10 @@ static tree_t declaration_specifiers(bool agressive)
     toknum_t st = current;
     toknum_t storage = 0;
     toknum_t fnspec = 0;
-    tree_t dirtype = NULL;
     toknum_t *names = NULL;
     toknum_t *quals = NULL;
+    tree_t *attrs = NULL;
+    tree_t dirtype = NULL;
 
     for (;;) switch (peek(1))
     {
@@ -1157,12 +1205,22 @@ static tree_t declaration_specifiers(bool agressive)
             fnspec = consume();
             break;
 
+        // Attribute.
+        case KW_ATTRIBUTE:
+            if (attrs)
+                vec_push(attrs, attribute());
+            else
+                attrs = attributes();
+
+            break;
+
         // Perhaps custom type.
         case TOK_IDENTIFIER:
             if (!(dirtype || names) && starts_declaration(agressive))
             {
                 names = new_toknum_vec(1);
                 vec_push(names, consume());
+                break;
             }
 
             // Fallthrough.
@@ -1171,10 +1229,11 @@ static tree_t declaration_specifiers(bool agressive)
             if (names)
                 dirtype = finish_id_type(names[0], names);
 
-            if (!(dirtype || storage || quals || fnspec))
+            if (current == st)
                 return NULL;
 
-            return finish_specifiers(st, storage, fnspec, quals, dirtype);
+            return finish_specifiers(st, storage, fnspec, quals,
+                                     dirtype, attrs);
     }
 }
 
@@ -1280,6 +1339,9 @@ static tree_t enum_specifier(void)
  * C99 6.7.1 init-declarator:
  *     declarator ["=" initializer]
  *
+ * GNU init-declarator:
+ *     declarator attributes ["=" initializer]
+ *
  * C99 6.7.2.1 struct-declarator:
  *     declarator
  *     [declarator] ":" constant-expression
@@ -1291,12 +1353,14 @@ static tree_t init_declarator(void)
     tree_t init = NULL;
     tree_t indtype = NULL;
     tree_t bitsize = NULL;
+    tree_t *attrs = NULL;
 
     if (!next_is(PN_COLON))
     {
         indtype = declarator_inner(&name);
         if (!(indtype || name))
             panic("Empty declarator");
+        attrs = attributes();
     }
 
     if (accept(PN_EQ))
@@ -1304,7 +1368,7 @@ static tree_t init_declarator(void)
     else if (accept(PN_COLON))
         bitsize = constant_expression();
 
-    return finish_declarator(st, indtype, name, init, bitsize);
+    return finish_declarator(st, indtype, name, init, bitsize, attrs);
 }
 
 
@@ -1320,7 +1384,10 @@ static tree_t init_declarator(void)
  *     ["*" [type-qualifier-list]]+
  *
  * C99 6.7.5 type-qualifier-list:
- *     [type-qualifier]+
+ *     [type-qualifier-list] type-qualifier
+ *
+ * GNU type-qualifier-list:
+ *     [type-qualifier-list] attributes
  *
  * We accept empty declarator.
  */
@@ -1547,7 +1614,7 @@ static tree_t type_name(void)
     toknum_t decl_st = current;
 
     if ((indtype = declarator_inner(NULL)))
-        decl = finish_declarator(decl_st, indtype, 0, NULL, NULL);
+        decl = finish_declarator(decl_st, indtype, 0, NULL, NULL, NULL);
 
     return finish_type_name(st, specs, decl);
 }
@@ -1933,6 +2000,90 @@ static tree_t translation_unit(void)
     pop_recpoint();
 
     return finish_transl_unit(st, entities);
+}
+
+
+/////////////////////
+// GNU extensions. //
+/////////////////////
+
+/*!
+ * attributes:
+ *     [attribute]*
+ *
+ * We accept empty attributes.
+ */
+static tree_t *attributes(void)
+{
+    tree_t *attrs;
+    tree_t attr;
+
+    if (!next_is(KW_ATTRIBUTE))
+        return NULL;
+
+    attrs = new_tree_vec(1);
+
+    while ((attr = attribute()))
+        vec_push(attrs, attr);
+
+    return attrs;
+}
+
+
+/*!
+ * attribute:
+ *     "__attribute__" "(" "(" attribute-list ")" ")"
+ *
+ * attribute-list:
+ *     [attribute-list ","]* [attrib]
+ *
+ * attrib:
+ *     any-word
+ *     any-word "(" [argument-expression-list] ")"
+ *
+ * We accept empty attribute.
+ */
+static tree_t attribute(void)
+{
+    toknum_t st = current;
+    tree_t *attribs = new_tree_vec(1);
+
+    if (!accept(KW_ATTRIBUTE))
+        return NULL;
+
+    expect(PN_LPAREN);
+    expect(PN_LPAREN);
+
+    // Attribute list.
+    while (!next_is(PN_RPAREN))
+    {
+        toknum_t name;
+        tree_t *args = NULL;
+
+        if (accept(PN_COMMA))
+            continue;
+
+        name = expect_word();
+
+        // Parameters.
+        if (accept(PN_LPAREN))
+        {
+            args = new_tree_vec(3);
+
+            while (!accept(PN_RPAREN))
+            {
+                vec_push(args, assignment_expression());
+                if (!next_is(PN_RPAREN))
+                    expect(PN_COMMA);
+            }
+        }
+
+        vec_push(attribs, finish_attrib(name, name, args));
+    }
+
+    expect(PN_RPAREN);
+    expect(PN_RPAREN);
+    return finish_attribute(st, attribs);
 }
 
 

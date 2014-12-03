@@ -23,6 +23,7 @@
     XX(KW_BOOL, "_Bool")                                                      \
     XX(KW_COMPLEX, "_Complex")                                                \
     XX(KW_IMAGINARY, "_Imaginary")                                            \
+    XX(KW_ATTRIBUTE, "__attribute__")                                         \
     XX(KW_AUTO, "auto")                                                       \
     XX(KW_BREAK, "break")                                                     \
     XX(KW_CASE, "case")                                                       \
