@@ -259,7 +259,7 @@ static void process_block(struct block_s *tree)
         struct function_def_s *fn_def = (void *)tree->parent;
         toknum_t name = ((struct declarator_s *)fn_def->decl)->name;
 
-        // Case 'int (name)(...) {...}'.
+        // Case "int (name)(...) {...}".
         if (g_tokens[name + 1].kind == PN_RPAREN)
             ++name;
 

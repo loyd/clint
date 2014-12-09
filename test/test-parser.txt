@@ -707,6 +707,36 @@ transl-unit
     ]
 ~~~~~~~~~~~~~~~~~~~~~~
 
+parentheses around name
+=======================
+    void (fn)() {}
+    custom_t (fn)() {}
+~~~~~~~~~~~~~~~~~~~~~~~
+transl-unit
+    :entities [
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(void)]
+            :decl declarator
+                :indtype function
+                    :params []
+                :name (fn)
+            :body block
+                :entities []
+        function-def
+            :specs specifiers
+                :dirtype id-type
+                    :names [(custom_t)]
+            :decl declarator
+                :indtype function
+                    :params []
+                :name (fn)
+            :body block
+                :entities []
+    ]
+~~~~~~~~~~~~~~~~~~~~~~~
+
 
 [expressions]
 

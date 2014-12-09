@@ -636,10 +636,12 @@ static tree_t finish_comp_member(toknum_t st, tree_t *designs, tree_t init)
  * In normal mode:
  *     "X * Y"      expression
  *     "X)" "X,"    expression
+ *     "X(Y)("      expression
  *
  * In agressive mode:
  *     "X * Y"      declaration
  *     "X)" "X,"    declaration
+ *     "X(Y)("      declaration
  */
 static bool starts_declaration(bool agressive)
 {
@@ -651,6 +653,7 @@ static bool starts_declaration(bool agressive)
         case TOK_IDENTIFIER:
             switch (peek(2))
             {
+                // "X)" and "X,".
                 case PN_RPAREN:
                 case PN_COMMA:
                     return agressive;
@@ -665,6 +668,7 @@ static bool starts_declaration(bool agressive)
                         case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
                             return true;
 
+                        // "X * Y".
                         default:
                             return agressive;
                     }
@@ -675,6 +679,13 @@ static bool starts_declaration(bool agressive)
                 case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:
                 case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
                     return true;
+
+                // "X(Y)(" (e.g. "custom_t (fn)(int a) {}").
+                case PN_LPAREN:
+                    return peek(3) == TOK_IDENTIFIER &&
+                           peek(4) == PN_RPAREN &&
+                           peek(5) == PN_LPAREN;
+
 
                 default:
                     return false;
