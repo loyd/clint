@@ -53,6 +53,7 @@
 
         "between-unary-and-operand": false,
         "around-binary": true,
+        // "around-bitwise": false,
         "around-assignment": true,
         "around-accessor": false,
         "in-conditional": true,

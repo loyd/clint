@@ -21,6 +21,7 @@ static int newline_before_control = NONE;
 static int newline_before_fn_body = NONE;
 static int between_unary_and_operand = NONE;
 static int around_binary = NONE;
+static int around_bitwise = NONE;
 static int around_assignment = NONE;
 static int around_accessor = NONE;
 static int in_conditional = NONE;
@@ -58,6 +59,7 @@ static void configure(json_value *config)
     bind_option(newline_before_fn_body,    "newline-before-fn-body");
     bind_option(between_unary_and_operand, "between-unary-and-operand");
     bind_option(around_binary,             "around-binary");
+    bind_option(around_bitwise,            "around-bitwise");
     bind_option(around_assignment,         "around-assignment");
     bind_option(around_accessor,           "around-accessor");
     bind_option(in_conditional,            "in-conditional");
@@ -290,8 +292,18 @@ static void process_unary(struct unary_s *tree)
 
 static void process_binary(struct binary_s *tree)
 {
-    check_space_before(tree->op, around_binary, "binary operator");
-    check_space_after(tree->op, around_binary, "binary operator");
+    enum token_e kind = g_tokens[tree->op].kind;
+
+    if (kind == PN_PIPE || kind == PN_AMP)
+    {
+        check_space_before(tree->op, around_bitwise, "bitwise operator");
+        check_space_after(tree->op, around_bitwise, "bitwise operator");
+    }
+    else
+    {
+        check_space_before(tree->op, around_binary, "binary operator");
+        check_space_after(tree->op, around_binary, "binary operator");
+    }
 }
 
 
