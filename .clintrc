@@ -69,7 +69,8 @@
         "disallow-empty": true,
         "disallow-short": true,
         "disallow-oneline": true,
-        "require-decls-on-top": true
+        "require-decls-on-top": true,
+        "allow-before-decls": ["assert"]
     },
 
     "runtime": {
