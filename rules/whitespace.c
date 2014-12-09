@@ -321,12 +321,30 @@ static void process_accessor(struct accessor_s *tree)
 }
 
 
+static toknum_t find_tok(enum token_e kind, toknum_t from, toknum_t to)
+{
+    for (toknum_t i = from; i < to; ++i)
+        if (g_tokens[i].kind == kind)
+            return i;
+
+    return 0;
+}
+
+
 static void process_conditional(struct conditional_s *tree)
 {
-    check_space_after(tree->cond->end, in_conditional, "test");
-    check_space_before(tree->then_br->start, in_conditional, "consequent");
-    check_space_after(tree->then_br->end, in_conditional, "consequent");
-    check_space_before(tree->else_br->start, in_conditional, "alternate");
+    toknum_t quest, colon;
+
+    if (!in_conditional)
+        return;
+
+    quest = find_tok(PN_QUESTION, tree->cond->end, tree->then_br->start);
+    colon = find_tok(PN_COLON, tree->then_br->end, tree->else_br->start);
+
+    check_space_after(quest - 1, in_conditional, "test");
+    check_space_before(quest + 1, in_conditional, "consequent");
+    check_space_after(colon - 1, in_conditional, "consequent");
+    check_space_before(colon + 1, in_conditional, "alternate");
 }
 
 
