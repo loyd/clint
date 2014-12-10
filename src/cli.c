@@ -260,6 +260,7 @@ static void tree_walk(const char *path)
 {
     struct stat fstat;
     DIR *dir;
+    unsigned path_len;
 
     OK(!stat(path, &fstat));
 
@@ -273,22 +274,25 @@ static void tree_walk(const char *path)
         return;
 
     OK(dir = opendir(path));
+    path_len = strlen(path);
 
     for (;;)
     {
         struct dirent *entry = readdir(dir);
         char *fpath;
-        unsigned fpath_sz = strlen(path) + strlen(entry->d_name) + 2;
+        unsigned fpath_len;
 
         if (!entry)
             break;
+
+        fpath_len = path_len + strlen(entry->d_name) + 2;
 
         // Skip hidden (".", "..", ".svn", ".git", ".hg" etc).
         if (entry->d_name[0] == '.')
             continue;
 
-        fpath = xmalloc(fpath_sz);
-        snprintf(fpath, fpath_sz, "%s/%s", path, entry->d_name);
+        fpath = xmalloc(fpath_len);
+        snprintf(fpath, fpath_len, "%s/%s", path, entry->d_name);
         tree_walk(fpath);
         free(fpath);
     }
