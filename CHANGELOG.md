@@ -1,23 +1,30 @@
+## Version 0.5.6
+ * Initial support for GNU attributes.
+ * Support for parentheses around function name.
+ * Rule `allow-alignment`.
+ * Rule `around-bitwise`.
+ * Rule `allow-before-decls`.
+
 ## Version 0.5.4
  * Allowed \r and \r\n line breaks.
  * Colorized output for windows.
- * Fixed `maximum-length` for utf-8.
- * New rule: `require-line-break`.
- * New option: --unsorted.
- * New option: --no-colors.
+ * Correct counting of utf-8 symbols.
+ * Rule `require-line-break`.
+ * Option --unsorted.
+ * Option --no-colors.
 
 ## Version 0.5.2
  * Performance improvement.
  * Now errors in order.
- * New option: --shortly.
- * New option: --limit.
+ * Option --shortly.
+ * Option --limit.
 
 ## Version 0.5.0
  * Implementation of the lexer.
  * Implementation of the parser.
- * New rules: `naming:*`
- * New rules: `lines:*`
- * New rules: `indentation:*`
- * New rules: `whitespaces:*`
- * New rules: `block:*`
- * New rules: `runtime:*`
+ * Rules `naming:*`.
+ * Rules `lines:*`.
+ * Rules `indentation:*`.
+ * Rules `whitespaces:*`.
+ * Rules `block:*`.
+ * Rules `runtime:*`.
