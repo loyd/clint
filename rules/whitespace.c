@@ -31,6 +31,8 @@ static int after_name_in_fn_def = NONE;
 static int before_declarator_name = NONE;
 static int before_members = NONE;
 
+static bool allow_alignment = false;
+
 static enum {FREE, MIDDLE, TYPE, DECL} pointer_place = FREE;
 
 
@@ -68,6 +70,9 @@ static void configure(json_value *config)
     bind_option(after_name_in_fn_def,      "after-name-in-fn-def");
     bind_option(before_declarator_name,    "before-declarator-name");
     bind_option(before_members,            "before-members");
+
+    if ((value = json_get(config, "allow-alignment", json_boolean)))
+        allow_alignment = value->u.boolean;
 
     if ((value = json_get(config, "pointer-place", json_string)))
         if (!strcmp("declarator", value->u.string.ptr))
@@ -185,6 +190,113 @@ static void check_newline_after(toknum_t i, int mode, const char *where)
 }
 
 
+static char ch_from(unsigned line, unsigned column)
+{
+    return column < g_lines[line].length ? g_lines[line].start[column] : '\0';
+}
+
+
+static bool same_top_or_bottom(unsigned line, unsigned column)
+{
+    char ch = ch_from(line, column);
+    return ch == ch_from(line - 1, column) ||
+           ch == ch_from(line + 1, column);
+}
+
+
+static bool is_aligned(toknum_t i)
+{
+    token_t *tok, *prev, *next;
+    unsigned line, column;
+
+    if (!allow_alignment)
+        return false;
+
+    tok = &g_tokens[i];
+    prev = &g_tokens[i - 1];
+    next = &g_tokens[i + 1];
+    line = tok->start.line;
+    column = tok->start.column;
+
+    if (tok->start.line != prev->end.line ||
+        tok->start.column - prev->end.column < 2)
+        return false;
+
+    switch (tok->kind)
+    {
+        // a,  "a"
+        // ab, "ab"
+        case TOK_CHAR_CONST:
+        case TOK_STRING:
+        {
+            char quote;
+
+            if (ch_from(line, column) == 'L')
+                ++column;
+
+            quote = ch_from(line, column);
+
+            if (quote == ch_from(line - 1, column) ||
+                quote == ch_from(line + 1, column))
+                return true;
+
+            break;
+        }
+
+        // ab < a
+        // a  < c
+        case PN_EQ:
+        case PN_CARET:
+        case PN_AMP: case PN_PIPE:
+        case PN_GT: case PN_LE:
+        case PN_QUESTION: case PN_COLON:
+        case PN_PLUS: case PN_MINUS:
+        case PN_STAR: case PN_SLASH: case PN_PERCENT:
+            if (same_top_or_bottom(line, column))
+                return true;
+            break;
+
+        // ab  = c
+        // ab += d
+        case PN_PLUSEQ: case PN_MINUSEQ:
+        case PN_STAREQ: case PN_SLASHEQ: case PN_PERCENTEQ:
+        case PN_CARETEQ: case PN_LELEEQ: case PN_GTGTEQ:
+        case PN_AMPEQ: case PN_PIPEEQ:
+            if (same_top_or_bottom(line, tok->end.column))
+                return true;
+
+            // Fallthrough.
+
+        // ab << a
+        // a  << c
+        case PN_LEEQ: case PN_GTEQ: case PN_EXCLAIMEQ:
+        case PN_AMPAMP: case PN_PIPEPIPE:
+        case PN_LELE: case PN_GTGT:
+            if (same_top_or_bottom(line, column) &&
+                same_top_or_bottom(line, column + 1))
+                return true;
+            break;
+
+        default:
+            break;
+    }
+
+    // a,  NULL }
+    // ab, "bc" }
+    //    and
+    //  a,
+    // ab,
+    if ((next->kind == PN_COMMA || next->kind == PN_RBRACE) &&
+        next->start.line == line)
+    {
+        if (same_top_or_bottom(next->start.line, next->start.column))
+            return true;
+    }
+
+    return false;
+}
+
+
 static void check_tokens(void)
 {
     for (toknum_t i = 2; i < vec_len(g_tokens) - 1; ++i)
@@ -214,7 +326,8 @@ static void check_tokens(void)
                 check_space_before(i, before_comma, "comma");
 
                 if (g_tokens[i + 1].kind != PN_RBRACE &&
-                    g_tokens[i + 1].kind != PN_RSQUARE)
+                    g_tokens[i + 1].kind != PN_RSQUARE &&
+                    !is_aligned(i + 1))
                     check_space_after(i, after_comma, "comma");
                 break;
 
@@ -296,12 +409,14 @@ static void process_binary(struct binary_s *tree)
 
     if (kind == PN_PIPE || kind == PN_AMP)
     {
-        check_space_before(tree->op, around_bitwise, "bitwise operator");
+        if (!is_aligned(tree->op))
+            check_space_before(tree->op, around_bitwise, "bitwise operator");
         check_space_after(tree->op, around_bitwise, "bitwise operator");
     }
     else
     {
-        check_space_before(tree->op, around_binary, "binary operator");
+        if (!is_aligned(tree->op))
+            check_space_before(tree->op, around_binary, "binary operator");
         check_space_after(tree->op, around_binary, "binary operator");
     }
 }
@@ -309,7 +424,8 @@ static void process_binary(struct binary_s *tree)
 
 static void process_assignment(struct assignment_s *tree)
 {
-    check_space_before(tree->op, around_assignment, "assignment");
+    if (!is_aligned(tree->op))
+        check_space_before(tree->op, around_assignment, "assignment");
     check_space_after(tree->op, around_assignment, "assignment");
 }
 
@@ -341,9 +457,14 @@ static void process_conditional(struct conditional_s *tree)
     quest = find_tok(PN_QUESTION, tree->cond->end, tree->then_br->start);
     colon = find_tok(PN_COLON, tree->then_br->end, tree->else_br->start);
 
-    check_space_after(quest - 1, in_conditional, "test");
+    if (!is_aligned(quest))
+        check_space_after(quest - 1, in_conditional, "test");
+
     check_space_before(quest + 1, in_conditional, "consequent");
-    check_space_after(colon - 1, in_conditional, "consequent");
+
+    if (!is_aligned(colon))
+        check_space_after(colon - 1, in_conditional, "consequent");
+
     check_space_before(colon + 1, in_conditional, "alternate");
 }
 

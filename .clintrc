@@ -62,7 +62,9 @@
         "after-name-in-fn-def": false,
         "before-declarator-name": true,
         "before-members": true,
-        "pointer-place": "declarator"
+        "pointer-place": "declarator",
+
+        "allow-alignment" : true
     },
 
     "block": {
