@@ -72,14 +72,14 @@ static void process_call(struct call_s *tree)
     key[len] = '\0';
 
     if (require_threadsafe_fn &&
-        bsearch(key, threadunsafe, sizeof(threadunsafe)/sizeof(*threadunsafe),
+        bsearch(key, threadunsafe, sizeof(threadunsafe) / sizeof(*threadunsafe),
             sizeof(*threadunsafe), (int (*)(const void *, const void *))strcmp))
         add_warn_at(ident->start, "Consider using %s_r instead of %s",
                     key, key);
 
     if (require_safe_fn)
     {
-        char *res = bsearch(key, unsafe, sizeof(unsafe)/sizeof(*unsafe),
+        char *res = bsearch(key, unsafe, sizeof(unsafe) / sizeof(*unsafe),
             sizeof(*unsafe), (int (*)(const void *, const void *))strcmp);
 
         if (res)

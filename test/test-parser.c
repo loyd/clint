@@ -84,7 +84,8 @@ static void parse_tasks(char *data)
     for (;;)
     {
         skip_spaces();
-        if (!*data) break;
+        if (!*data)
+            break;
 
         assert(*data == '[' && "Expected group.");
         group_name = ++data;
@@ -98,7 +99,8 @@ static void parse_tasks(char *data)
         for (;;)
         {
             skip_spaces();
-            if (!*data || *data == '[') break;
+            if (!*data || *data == '[')
+                break;
 
             assert(data && "Expected test.");
             test_name = data;

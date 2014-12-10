@@ -44,16 +44,16 @@ static struct option_s options[] = {
     {CMD_LIMIT,      "limit",     'l',  "The maximum number of errors", "NUM"},
     {CMD_SHORTLY,    "shortly",   's',  "One-line output",               NULL},
     {CMD_CONFIG,     "config",    'c',  "Use FILE instead .clintrc",   "FILE"},
-    {CMD_NO_COLORS,  "no-colors",  0,   "Disable colors for output",     NULL},
+    {CMD_NO_COLORS,  "no-colors",   0,  "Disable colors for output",     NULL},
     {CMD_VERBOSE,    "verbose",   'v',  "Output errors during parsing",  NULL},
-    {CMD_TOKENIZE,   "tokenize",   0,   "Tokenize file and exit",        NULL},
-    {CMD_SHOW_TREE,  "show-tree",  0,   "Parse file and exit",           NULL},
-    {CMD_UNSORTED,   "unsorted",   0,   "Disable output sorting",        NULL},
+    {CMD_TOKENIZE,   "tokenize",    0,  "Tokenize file and exit",        NULL},
+    {CMD_SHOW_TREE,  "show-tree",   0,  "Parse file and exit",           NULL},
+    {CMD_UNSORTED,   "unsorted",    0,  "Disable output sorting",        NULL},
     {CMD_HELP,       "help",      'h',  "Display this help and exit",    NULL},
     {CMD_VERSION,    "version",   'V',  "Output version and exit",       NULL}
 };
 
-static int num_options = sizeof(options)/sizeof(*options);
+static int num_options = sizeof(options) / sizeof(*options);
 
 
 static void display_help(void)
@@ -214,17 +214,19 @@ static void process_file(const char *fpath)
     // Do something.
     if (action == TOKENIZE)
     {
+        char *str;
         init_lexer();
         tokenize();
-        char *str = stringify_tokens();
+        str = stringify_tokens();
         printf("%s: (%lu tokens)\n%s\n", fpath, vec_len(g_tokens), str);
         free(str);
     }
     else if (action == PARSE)
     {
+        char *str;
         init_parser();
         parse();
-        char *str = stringify_tree();
+        str = stringify_tree();
         printf("%s:\n%s\n", fpath, str);
         free(str);
     }
@@ -257,6 +259,7 @@ error:
 static void tree_walk(const char *path)
 {
     struct stat fstat;
+    DIR *dir;
 
     OK(!stat(path, &fstat));
 
@@ -269,12 +272,13 @@ static void tree_walk(const char *path)
     if (!S_ISDIR(fstat.st_mode))
         return;
 
-    DIR *dir = opendir(path);
-    OK(dir);
+    OK(dir = opendir(path));
 
     for (;;)
     {
         struct dirent *entry = readdir(dir);
+        char *fpath;
+        unsigned fpath_sz = strlen(path) + strlen(entry->d_name) + 2;
 
         if (!entry)
             break;
@@ -283,9 +287,10 @@ static void tree_walk(const char *path)
         if (entry->d_name[0] == '.')
             continue;
 
-        char fpath[strlen(path) + strlen(entry->d_name) + 2];
-        sprintf(fpath, "%s/%s", path, entry->d_name);
+        fpath = xmalloc(fpath_sz);
+        snprintf(fpath, fpath_sz, "%s/%s", path, entry->d_name);
         tree_walk(fpath);
+        free(fpath);
     }
 
     OK(!closedir(dir));
@@ -391,7 +396,7 @@ int main(int argc, const char *argv[])
                 return MAJOR_ERR;
             }
 
-            if (opt->argname && (argv[i][j+1] || i + 1 == argc))
+            if (opt->argname && (argv[i][j + 1] || i + 1 == argc))
             {
                 fprintf(stderr, "Option -%c requires argument.\n",
                         opt->abbrev);

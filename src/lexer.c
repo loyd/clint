@@ -59,11 +59,9 @@ struct extstr_s {
 
 static int comparator(struct extstr_s *key, struct extstr_s *entry)
 {
-    assert(entry->data[entry->len] == '\0');
-
-    int len = key->len >  entry->len ? entry->len + 1
-            : key->len == entry->len ? key->len
-                                     : key->len + 1;
+    int len = key->len > entry->len ? entry->len + 1
+            : key->len < entry->len ? key->len + 1
+                                    : key->len;
 
     return memcmp(key->data, entry->data, len);
 }
@@ -78,14 +76,16 @@ static inline enum token_e find_kw(const char *word, int len)
     };
 
     static struct extstr_s key;
+    struct extstr_s *res;
+
     key.data = word;
     key.len = len;
 
-    struct extstr_s *res = bsearch((void *)&key,
-        table, sizeof(table)/sizeof(*table), sizeof(*table),
+    res = bsearch((void *)&key,
+        table, sizeof(table) / sizeof(*table), sizeof(*table),
         (int (*)(const void *, const void *))comparator);
 
-    return res ? (res-table) + KW_BOOL : TOK_UNKNOWN;
+    return res ? (res - table) + KW_BOOL : TOK_UNKNOWN;
 }
 
 
@@ -98,14 +98,16 @@ static inline enum token_e find_pp(const char *word, int len)
     };
 
     static struct extstr_s key;
+    struct extstr_s *res;
+
     key.data = word;
     key.len = len;
 
-    struct extstr_s *res = bsearch((void *)&key,
-        table, sizeof(table)/sizeof(*table), sizeof(*table),
+    res = bsearch((void *)&key,
+        table, sizeof(table) / sizeof(*table), sizeof(*table),
         (int (*)(const void *, const void *))comparator);
 
-    return res ? (res-table) + PP_DEFINE : TOK_UNKNOWN;
+    return res ? (res - table) + PP_DEFINE : TOK_UNKNOWN;
 }
 //!@}
 
@@ -156,9 +158,11 @@ static void eat(int num)
          */
         while (*++ch == '\\')
         {
-            while (isspace(ch[1]))
-                if (is_nel(++ch))
-                    break;
+            while (isspace(ch[1]) && !is_nel(ch + 1))
+                ++ch;
+
+            if (isspace(ch[1]))
+                ++ch;
 
             if (!(nel = is_nel(ch)))
                 break;
@@ -249,7 +253,7 @@ static bool numeric_const(token_t *token)
 static bool char_const(token_t *token)
 {
     assert(token);
-    assert(*ch == '\'' ||  *ch == 'L' && ch[1] == '\'');
+    assert(*ch == '\'' || *ch == 'L' && ch[1] == '\'');
 
     eat(*ch == 'L' ? 2 : 1);
     while (*ch && !is_nel(ch) && *ch != '\'')
@@ -277,7 +281,7 @@ static bool char_const(token_t *token)
 static bool string_literal(token_t *token)
 {
     assert(token);
-    assert(*ch == '"' ||  *ch == 'L' && ch[1] == '"');
+    assert(*ch == '"' || *ch == 'L' && ch[1] == '"');
 
     eat(*ch == 'L' ? 2 : 1);
     while (*ch && !is_nel(ch) && *ch != '"')
@@ -304,12 +308,14 @@ static bool string_literal(token_t *token)
  */
 static bool check_ucn(void)
 {
+    int digits;
+
     if (!(*ch == '\\' && tolower(ch[1]) == 'u'))
         return false;
 
-    int digits = ch[1] == 'u' ? 4 : 8;
+    digits = ch[1] == 'u' ? 4 : 8;
     for (int i = 0; i < digits; ++i)
-        if (!isxdigit(ch[i+2]))
+        if (!isxdigit(ch[i + 2]))
             return false;
 
     return true;
@@ -338,7 +344,7 @@ static bool identifier(token_t *token)
 
     if (parsing_pp_directive)
     {
-        token->kind = find_pp(start, ch-start);
+        token->kind = find_pp(start, ch - start);
 
         if (token->kind == PP_INCLUDE)
             parsing_header_name = true;
@@ -347,7 +353,7 @@ static bool identifier(token_t *token)
     }
     else
     {
-        token->kind = find_kw(start, ch-start);
+        token->kind = find_kw(start, ch - start);
 
         if (token->kind == TOK_UNKNOWN)
             token->kind = TOK_IDENTIFIER;
@@ -373,7 +379,8 @@ static bool punctuator(token_t *token)
 
     enum token_e kind;
 
-    switch (*ch) {
+    switch (*ch)
+    {
         case '[': kind = PN_LSQUARE; break;
         case ']': kind = PN_RSQUARE; break;
         case '(': kind = PN_LPAREN; break;

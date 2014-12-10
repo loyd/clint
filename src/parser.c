@@ -119,7 +119,7 @@ static enum token_e peek(unsigned lookahead)
                 pull_token(&token);
             while (token.kind != TOK_EOF &&
                    (token.start.line == line ||
-                    g_lines[token.start.line-1].dangling));
+                    g_lines[token.start.line - 1].dangling));
         }
 
         // Skip comments.
@@ -645,51 +645,12 @@ static tree_t finish_comp_member(toknum_t st, tree_t *designs, tree_t init)
  */
 static bool starts_declaration(bool agressive)
 {
-    //#TODO: refactor me.
-
     switch (peek(1))
     {
         // Custom type or start of expression.
         case TOK_IDENTIFIER:
-            switch (peek(2))
-            {
-                // "X)" and "X,".
-                case PN_RPAREN:
-                case PN_COMMA:
-                    return agressive;
-
-                case PN_STAR:
-                    switch (peek(3))
-                    {
-                        // "X *)" is are always declaration.
-                        case PN_RPAREN:
-                        // Sequence of pointers.
-                        case PN_STAR: case KW_ATTRIBUTE:
-                        case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
-                            return true;
-
-                        // "X * Y".
-                        default:
-                            return agressive;
-                    }
-
-                    return agressive;
-
-                case TOK_IDENTIFIER: case KW_TYPEDEF: case KW_ATTRIBUTE:
-                case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:
-                case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
-                    return true;
-
-                // "X(Y)(" (e.g. "custom_t (fn)(int a) {}").
-                case PN_LPAREN:
-                    return peek(3) == TOK_IDENTIFIER &&
-                           peek(4) == PN_RPAREN &&
-                           peek(5) == PN_LPAREN;
-
-
-                default:
-                    return false;
-            }
+            // Look second token.
+            break;
 
         // Storage class specifiers.
         case KW_TYPEDEF: case KW_EXTERN: case KW_STATIC: case KW_REGISTER:
@@ -711,10 +672,53 @@ static bool starts_declaration(bool agressive)
         default:
             return false;
     }
+
+    switch (peek(2))
+    {
+        // "X)" and "X,".
+        case PN_RPAREN:
+        case PN_COMMA:
+            return agressive;
+
+        case PN_STAR:
+            // Look third token.
+            break;
+
+        case TOK_IDENTIFIER: case KW_TYPEDEF: case KW_ATTRIBUTE:
+        case KW_EXTERN: case KW_STATIC: case KW_REGISTER: case KW_AUTO:
+        case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
+            return true;
+
+        // "X(Y)(" (e.g. "custom_t (fn)(int a) {}").
+        case PN_LPAREN:
+            return peek(3) == TOK_IDENTIFIER &&
+                   peek(4) == PN_RPAREN &&
+                   peek(5) == PN_LPAREN;
+
+        default:
+            return false;
+    }
+
+    switch (peek(3))
+    {
+        // "X *)" is are always declaration.
+        case PN_RPAREN:
+        // Sequence of pointers.
+        case PN_STAR: case KW_ATTRIBUTE:
+        case KW_CONST: case KW_RESTRICT: case KW_VOLATILE:
+            return true;
+
+        // "X * Y".
+        default:
+            return agressive;
+    }
+
+    return agressive;
 }
 
 
 static tree_t cast_expression(bool after_sizeof);
+static tree_t cast_expression_after_lparen(bool after_sizeof);
 static tree_t postfix_expression_suffixes(tree_t left);
 static tree_t binary_expression(void);
 static tree_t conditional_expression(void);
@@ -730,6 +734,7 @@ static tree_t enum_specifier(void);
 static tree_t init_declarator(void);
 static tree_t declarator_inner(toknum_t *name);
 static tree_t direct_declarator_inner(toknum_t *name);
+static tree_t *parameter_type_list(void);
 static tree_t compound_literal(tree_t type);
 static tree_t initializer(void);
 static tree_t type_name(void);
@@ -788,58 +793,8 @@ static tree_t cast_expression(bool after_sizeof)
 
     switch (peek(1))
     {
-        // Compound literal: (<type-name>) {<init-list>}
-        // Cast expression:  (<type-name>) <cast-expr>          [!after_sizeof]
-        // After sizeof: (<type-name>)                          [after_sizeof]
-        // Postfix expression: (<expr>) <postfix-expr-suffix>
-        // Primary expression: (<expr>)
         case PN_LPAREN:
-            consume();
-
-            // Choice between type name and expression.
-            if (starts_declaration(false))
-                left = type_name();
-            else if (next_is(TOK_IDENTIFIER) && peek(2) == PN_RPAREN)
-            {
-                // Some heuristics.
-                switch (peek(3))
-                {
-                    case PN_SEMI:
-                    case PN_COMMA:
-                    case PN_RPAREN:
-                        left = after_sizeof ? type_name() : expression();
-                        break;
-
-                    case PN_ARROW:
-                    case PN_PERIOD:
-                    case PN_LSQUARE:
-                        left = expression();
-                        break;
-
-                    case PN_PLUSPLUS:
-                    case PN_MINUSMINUS:
-                        left = peek(4) == TOK_IDENTIFIER ? type_name()
-                                                         : expression();
-                        break;
-
-                    default:
-                        left = type_name();
-                }
-            }
-            else
-                left = expression();
-
-            expect(PN_RPAREN);
-
-            if (left->type == TYPE_NAME)
-                if (next_is(PN_LBRACE))
-                    left = compound_literal(left);
-                else if (after_sizeof)
-                    return left;
-                else
-                    return finish_cast(st, left, cast_expression(false));
-
-            break;
+            return cast_expression_after_lparen(after_sizeof);
 
         // Primary expression.
         case TOK_IDENTIFIER:
@@ -881,6 +836,62 @@ static tree_t cast_expression(bool after_sizeof)
 }
 
 
+static tree_t cast_expression_after_lparen(bool after_sizeof)
+{
+    // Compound literal: (<type-name>) {<init-list>}
+    // Cast expression:  (<type-name>) <cast-expr>          [!after_sizeof]
+    // After sizeof: (<type-name>)                          [after_sizeof]
+    // Postfix expression: (<expr>) <postfix-expr-suffix>
+    // Primary expression: (<expr>)
+
+    toknum_t st = consume();
+    tree_t left;
+
+    // Choice between type name and expression.
+    if (starts_declaration(false))
+        left = type_name();
+    else if (next_is(TOK_IDENTIFIER) && peek(2) == PN_RPAREN)
+        // Some heuristics.
+        switch (peek(3))
+        {
+            case PN_SEMI:
+            case PN_COMMA:
+            case PN_RPAREN:
+                left = after_sizeof ? type_name() : expression();
+                break;
+
+            case PN_ARROW:
+            case PN_PERIOD:
+            case PN_LSQUARE:
+                left = expression();
+                break;
+
+            case PN_PLUSPLUS:
+            case PN_MINUSMINUS:
+                left = peek(4) == TOK_IDENTIFIER ? type_name()
+                                                 : expression();
+                break;
+
+            default:
+                left = type_name();
+        }
+    else
+        left = expression();
+
+    expect(PN_RPAREN);
+
+    if (left->type == TYPE_NAME)
+        if (next_is(PN_LBRACE))
+            left = compound_literal(left);
+        else if (after_sizeof)
+            return left;
+        else
+            return finish_cast(st, left, cast_expression(false));
+
+    return postfix_expression_suffixes(left);
+}
+
+
 /*!
  * postfix-expression-suffixes:
  *     [postfix-expression-suffix]*
@@ -900,7 +911,7 @@ static tree_t postfix_expression_suffixes(tree_t left)
 {
     assert(left);
 
-    for(;;) switch (peek(1))
+    for (;;) switch (peek(1))
     {
         case PN_LSQUARE:
         {
@@ -920,8 +931,7 @@ static tree_t postfix_expression_suffixes(tree_t left)
             while (!accept(PN_RPAREN))
             {
                 vec_push(args, assignment_expression());
-                if (!next_is(PN_RPAREN))
-                    expect(PN_COMMA);
+                next_is(PN_RPAREN) || expect(PN_COMMA);
             }
 
             left = finish_call(left->start, left, args);
@@ -1430,19 +1440,6 @@ static tree_t declarator_inner(toknum_t *name)
  *     "[" type-qualifier-list "static" assignment-expression "]"
  *     "[" [type-qualifier-list] "*" "]"
  *
- * C99 6.7.5 parameter-type-list:
- *     parameter-list ["," "..."]
- *
- * C99 6.7.5 parameter-list:
- *     [parameter-list ","] parameter-declaration
- *
- * C99 6.7.5 parameter-declaration:
- *     declaration-specifiers declarator
- *     declaration-specifiers [abstract-declarator]
- *
- * C99 6.7.5 identifier-list:
- *     [identifier-list ","] identifier
- *
  * C99 6.7.5 direct-abstract-declarator:
  *     "(" abstract-declarator ")"
  *     [direct-abstract-declarator] array-declarator
@@ -1500,38 +1497,10 @@ static tree_t direct_declarator_inner(toknum_t *name)
             else
                 is_group = true;
 
-            if (is_group)
-            {
-                indtype = declarator_inner(&ident);
-                expect(PN_RPAREN);
-                break;
-            }
+            indtype = is_group ? declarator_inner(&ident)
+                    : finish_function(st, indtype, parameter_type_list());
 
-            tree_t *params = new_tree_vec(2);
-
-            while (!accept(PN_RPAREN))
-            {
-                toknum_t param_st = current;
-
-                if (next_is(PN_ELLIPSIS))
-                    vec_push(params, finish_special(param_st, consume()));
-                else
-                {
-                    tree_t specs = declaration_specifiers(true);
-                    tree_t declarator = NULL;
-
-                    if (!(next_is(PN_COMMA) || next_is(PN_RPAREN)))
-                        declarator = init_declarator();
-
-                    vec_push(params, finish_parameter(param_st, specs,
-                                                      declarator));
-                }
-
-                if (!next_is(PN_RPAREN))
-                    expect(PN_COMMA);
-            }
-
-            indtype = finish_function(st, indtype, params);
+            expect(PN_RPAREN);
             break;
         }
 
@@ -1541,6 +1510,50 @@ static tree_t direct_declarator_inner(toknum_t *name)
 
             return indtype;
     }
+}
+
+
+/*!
+ * C99 6.7.5 parameter-type-list:
+ *     parameter-list ["," "..."]
+ *
+ * C99 6.7.5 parameter-list:
+ *     [parameter-list ","] parameter-declaration
+ *
+ * C99 6.7.5 parameter-declaration:
+ *     declaration-specifiers declarator
+ *     declaration-specifiers [abstract-declarator]
+ *
+ * C99 6.7.5 identifier-list:
+ *     [identifier-list ","] identifier
+ */
+static tree_t *parameter_type_list(void)
+{
+    tree_t *params = new_tree_vec(2);
+
+    while (!next_is(PN_RPAREN))
+    {
+        toknum_t param_st = current;
+
+        if (next_is(PN_ELLIPSIS))
+            vec_push(params, finish_special(param_st, consume()));
+        else
+        {
+            tree_t specs = declaration_specifiers(true);
+            tree_t declarator = NULL;
+
+            if (!(next_is(PN_COMMA) || next_is(PN_RPAREN)))
+                declarator = init_declarator();
+
+            vec_push(params, finish_parameter(param_st, specs,
+                                              declarator));
+        }
+
+        if (!next_is(PN_RPAREN))
+            expect(PN_COMMA);
+    }
+
+    return params;
 }
 
 
@@ -1988,24 +2001,25 @@ static tree_t translation_unit(void)
     int eofidx = push_recpoint();
     int recidx = push_recpoint();
 
-    if (foothold(eofidx))
-        for (;;)
-            if (foothold(recidx))
-            {
-                allow_eof = true;
-                if (peek(1) == TOK_EOF)
-                    break;
-                allow_eof = false;
+    bool not_eof = foothold(eofidx);
 
-                vec_push(entities, declaration_or_fn_definition());
-            }
-            else
-            {
-                allow_eof = false;
-                while (!(next_is(PN_SEMI) || next_is(PN_RBRACE)))
-                    consume();
+    while (not_eof)
+        if (foothold(recidx))
+        {
+            allow_eof = true;
+            if (peek(1) == TOK_EOF)
+                break;
+            allow_eof = false;
+
+            vec_push(entities, declaration_or_fn_definition());
+        }
+        else
+        {
+            allow_eof = false;
+            while (!(next_is(PN_SEMI) || next_is(PN_RBRACE)))
                 consume();
-            }
+            consume();
+        }
 
     pop_recpoint();
     pop_recpoint();
@@ -2069,24 +2083,27 @@ static tree_t attribute(void)
     while (!next_is(PN_RPAREN))
     {
         toknum_t name;
-        tree_t *args = NULL;
+        tree_t *args;
 
         if (accept(PN_COMMA))
             continue;
 
         name = expect_word();
 
-        // Parameters.
-        if (accept(PN_LPAREN))
+        if (!accept(PN_LPAREN))
         {
-            args = new_tree_vec(3);
+            vec_push(attribs, finish_attrib(name, name, NULL));
+            continue;
+        }
 
-            while (!accept(PN_RPAREN))
-            {
-                vec_push(args, assignment_expression());
-                if (!next_is(PN_RPAREN))
-                    expect(PN_COMMA);
-            }
+        // Parameters.
+        args = new_tree_vec(3);
+
+        while (!accept(PN_RPAREN))
+        {
+            vec_push(args, assignment_expression());
+            if (!next_is(PN_RPAREN))
+                expect(PN_COMMA);
         }
 
         vec_push(attribs, finish_attrib(name, name, args));

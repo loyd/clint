@@ -35,12 +35,12 @@ typedef struct {
  * Global state.
  */
 //!@{
-extern char       *g_filename;  //!< Name of the current file.
-extern char       *g_data;      //!< Content of the current file.
-extern line_t     *g_lines;     //!< Pointers to starts of line.
-extern tree_t      g_tree;      //!< Tree of the current file.
-extern token_t    *g_tokens;    //!< 1-indexed consumed tokens.
-extern error_t    *g_errors;    //!< Errors and warnings.
+extern char *g_filename;        //!< Name of the current file.
+extern char *g_data;            //!< Content of the current file.
+extern line_t *g_lines;         //!< Pointers to starts of line.
+extern tree_t g_tree;           //!< Tree of the current file.
+extern token_t *g_tokens;       //!< 1-indexed consumed tokens.
+extern error_t *g_errors;       //!< Errors and warnings.
 extern json_value *g_config;    //!< Root of the config file.
 //!@}
 
@@ -117,7 +117,7 @@ enum log_mode_e {
 };
 
 extern enum log_mode_e g_log_mode;
-extern unsigned        g_log_limit;
+extern unsigned g_log_limit;
 
 
 extern void add_log(bool stylistic, unsigned line, unsigned column,

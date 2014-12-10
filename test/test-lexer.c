@@ -11,23 +11,23 @@
 #include "tokens.h"
 
 
-typedef enum token_e T[];
+typedef enum token_e v_t[];
 
-#define check(input, exp) _check(input, exp, sizeof(exp)/sizeof(*exp))
+#define check(input, exp) check(input, exp, sizeof(exp) / sizeof(*exp))
 
-static bool _check(const char *input, enum token_e expected[], int len)
+static bool (check)(const char *input, enum token_e expected[], int len)
 {
     static char buffer[1024];
     static enum token_e actual[20];
     static token_t tok;
+    int i = 0;
 
-    g_data = strcpy(buffer, input);
+    g_data = strncpy(buffer, input, sizeof(buffer));
     init_lexer();
 
-    int i = 0;
     pull_token(&tok);
 
-    while (tok.kind != TOK_EOF && i < len+1)
+    while (tok.kind != TOK_EOF && i < len + 1)
     {
         actual[i++] = tok.kind;
         pull_token(&tok);
@@ -48,8 +48,8 @@ static bool _check(const char *input, enum token_e expected[], int len)
     if (memcmp(actual, expected, len * sizeof(*actual)) != 0)
     {
         for (int j = 0; j < len; ++j)
-          if (actual[j] != expected[j])
-            fprintf(stderr, "actual[%d] != expected[%d].\n", j, j);
+            if (actual[j] != expected[j])
+                fprintf(stderr, "actual[%d] != expected[%d].\n", j, j);
 
         return false;
     }
@@ -66,66 +66,67 @@ void test_lexer(void)
 
     test("identifiers");
     {
-        assert(check("_", ((T){TOK_IDENTIFIER})));
-        assert(check("b", ((T){TOK_IDENTIFIER})));
-        assert(check("L", ((T){TOK_IDENTIFIER})));
-        assert(check("L01", ((T){TOK_IDENTIFIER})));
-        assert(check("\\u1234", ((T){TOK_IDENTIFIER})));
-        assert(check("\\U12345678", ((T){TOK_IDENTIFIER})));
-        assert(check("\\u123401", ((T){TOK_IDENTIFIER})));
-        assert(check("\\U1234567801", ((T){TOK_IDENTIFIER})));
-        assert(check("_a", ((T){TOK_IDENTIFIER})));
-        assert(check("ba", ((T){TOK_IDENTIFIER})));
-        assert(check("La", ((T){TOK_IDENTIFIER})));
-        assert(check("La01", ((T){TOK_IDENTIFIER})));
-        assert(check("\\u1234a", ((T){TOK_IDENTIFIER})));
-        assert(check("\\U12345678a", ((T){TOK_IDENTIFIER})));
-        assert(check("_a", ((T){TOK_IDENTIFIER})));
-        assert(check("ba", ((T){TOK_IDENTIFIER})));
-        assert(check("La", ((T){TOK_IDENTIFIER})));
-        assert(check("\\u1234a", ((T){TOK_IDENTIFIER})));
-        assert(check("\\U12345678a", ((T){TOK_IDENTIFIER})));
-        assert(check("La\\u1234", ((T){TOK_IDENTIFIER})));
-        assert(check("La\\u123401", ((T){TOK_IDENTIFIER})));
-        assert(check("\\u1234a\\u1234", ((T){TOK_IDENTIFIER})));
-        assert(check("\\U12345678a\\u1234", ((T){TOK_IDENTIFIER})));
-        assert(check("La\\U12345678", ((T){TOK_IDENTIFIER})));
-        assert(check("La\\U1234567801", ((T){TOK_IDENTIFIER})));
-        assert(check("\\u1234a\\U12345678", ((T){TOK_IDENTIFIER})));
-        assert(check("\\U12345678a\\U12345678", ((T){TOK_IDENTIFIER})));
-        assert(check(".el", ((T){PN_PERIOD, TOK_IDENTIFIER})));
+        assert(check("_", ((v_t){TOK_IDENTIFIER})));
+        assert(check("b", ((v_t){TOK_IDENTIFIER})));
+        assert(check("L", ((v_t){TOK_IDENTIFIER})));
+        assert(check("L01", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\u1234", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\U12345678", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\u123401", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\U1234567801", ((v_t){TOK_IDENTIFIER})));
+        assert(check("_a", ((v_t){TOK_IDENTIFIER})));
+        assert(check("ba", ((v_t){TOK_IDENTIFIER})));
+        assert(check("La", ((v_t){TOK_IDENTIFIER})));
+        assert(check("La01", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\u1234a", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\U12345678a", ((v_t){TOK_IDENTIFIER})));
+        assert(check("_a", ((v_t){TOK_IDENTIFIER})));
+        assert(check("ba", ((v_t){TOK_IDENTIFIER})));
+        assert(check("La", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\u1234a", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\U12345678a", ((v_t){TOK_IDENTIFIER})));
+        assert(check("La\\u1234", ((v_t){TOK_IDENTIFIER})));
+        assert(check("La\\u123401", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\u1234a\\u1234", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\U12345678a\\u1234", ((v_t){TOK_IDENTIFIER})));
+        assert(check("La\\U12345678", ((v_t){TOK_IDENTIFIER})));
+        assert(check("La\\U1234567801", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\u1234a\\U12345678", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\\U12345678a\\U12345678", ((v_t){TOK_IDENTIFIER})));
+        assert(check(".el", ((v_t){PN_PERIOD, TOK_IDENTIFIER})));
     }
 
 #define XX(kind, str)                                                         \
-    assert(check(str, ((T){kind})));
+    assert(check(str, ((v_t){kind})));
 
     test("keywords");
     {
-        assert(check("i", ((T){TOK_IDENTIFIER})));
-        assert(check("i{", ((T){TOK_IDENTIFIER, PN_LBRACE})));
-        assert(check("ifo", ((T){TOK_IDENTIFIER})));
-        assert(check("elif", ((T){TOK_IDENTIFIER})));
+        assert(check("i", ((v_t){TOK_IDENTIFIER})));
+        assert(check("i{", ((v_t){TOK_IDENTIFIER, PN_LBRACE})));
+        assert(check("ifo", ((v_t){TOK_IDENTIFIER})));
+        assert(check("elif", ((v_t){TOK_IDENTIFIER})));
 
         TOK_KW_MAP(XX)
     }
 
     test("punctuators");
     {
+        assert(check("..!", ((v_t){PN_PERIOD, PN_PERIOD, PN_EXCLAIM})));
         TOK_PN_MAP(XX)
     }
 #undef XX
 
 #define XX(kind, str)                                                         \
-    assert(check("#" str, ((T){PN_HASH, kind})));                             \
-    assert(check("#  " str, ((T){PN_HASH, kind})));
+    assert(check("#" str, ((v_t){PN_HASH, kind})));                           \
+    assert(check("#  " str, ((v_t){PN_HASH, kind})));
 
     test("preprocessor keywords");
     {
-        assert(check("#i", ((T){PN_HASH, TOK_UNKNOWN})));
-        assert(check("#i{", ((T){PN_HASH, TOK_UNKNOWN, PN_LBRACE})));
-        assert(check("#ifo", ((T){PN_HASH, TOK_UNKNOWN})));
-        assert(check("#for", ((T){PN_HASH, TOK_UNKNOWN})));
-        assert(check("# for", ((T){PN_HASH, TOK_UNKNOWN})));
+        assert(check("#i", ((v_t){PN_HASH, TOK_UNKNOWN})));
+        assert(check("#i{", ((v_t){PN_HASH, TOK_UNKNOWN, PN_LBRACE})));
+        assert(check("#ifo", ((v_t){PN_HASH, TOK_UNKNOWN})));
+        assert(check("#for", ((v_t){PN_HASH, TOK_UNKNOWN})));
+        assert(check("# for", ((v_t){PN_HASH, TOK_UNKNOWN})));
 
         TOK_PP_MAP(XX)
     }
@@ -134,153 +135,153 @@ void test_lexer(void)
     test("numeric constants");
     {
         // Integers.
-        assert(check("0", ((T){TOK_NUM_CONST})));
-        assert(check("0ul", ((T){TOK_NUM_CONST})));
-        assert(check("0lu", ((T){TOK_NUM_CONST})));
-        assert(check("0LL", ((T){TOK_NUM_CONST})));
-        assert(check("0ll", ((T){TOK_NUM_CONST})));
-        assert(check("012345", ((T){TOK_NUM_CONST})));
-        assert(check("012345LL", ((T){TOK_NUM_CONST})));
-        assert(check("012345LLu", ((T){TOK_NUM_CONST})));
-        assert(check("012345uLL", ((T){TOK_NUM_CONST})));
-        assert(check("012345ull", ((T){TOK_NUM_CONST})));
-        assert(check("9", ((T){TOK_NUM_CONST})));
-        assert(check("9ul", ((T){TOK_NUM_CONST})));
-        assert(check("9lu", ((T){TOK_NUM_CONST})));
-        assert(check("9LL", ((T){TOK_NUM_CONST})));
-        assert(check("9ll", ((T){TOK_NUM_CONST})));
-        assert(check("912345", ((T){TOK_NUM_CONST})));
-        assert(check("912345LL", ((T){TOK_NUM_CONST})));
-        assert(check("912345LLu", ((T){TOK_NUM_CONST})));
-        assert(check("912345uLL", ((T){TOK_NUM_CONST})));
-        assert(check("912345ull", ((T){TOK_NUM_CONST})));
-        assert(check("9", ((T){TOK_NUM_CONST})));
-        assert(check("9ul", ((T){TOK_NUM_CONST})));
-        assert(check("9lu", ((T){TOK_NUM_CONST})));
-        assert(check("9LL", ((T){TOK_NUM_CONST})));
-        assert(check("9ll", ((T){TOK_NUM_CONST})));
-        assert(check("0xb12345", ((T){TOK_NUM_CONST})));
-        assert(check("0Xb12345LL", ((T){TOK_NUM_CONST})));
-        assert(check("0xB12345LLu", ((T){TOK_NUM_CONST})));
-        assert(check("0Xb12345uLL", ((T){TOK_NUM_CONST})));
-        assert(check("0xB12345ull", ((T){TOK_NUM_CONST})));
+        assert(check("0", ((v_t){TOK_NUM_CONST})));
+        assert(check("0ul", ((v_t){TOK_NUM_CONST})));
+        assert(check("0lu", ((v_t){TOK_NUM_CONST})));
+        assert(check("0LL", ((v_t){TOK_NUM_CONST})));
+        assert(check("0ll", ((v_t){TOK_NUM_CONST})));
+        assert(check("012345", ((v_t){TOK_NUM_CONST})));
+        assert(check("012345LL", ((v_t){TOK_NUM_CONST})));
+        assert(check("012345LLu", ((v_t){TOK_NUM_CONST})));
+        assert(check("012345uLL", ((v_t){TOK_NUM_CONST})));
+        assert(check("012345ull", ((v_t){TOK_NUM_CONST})));
+        assert(check("9", ((v_t){TOK_NUM_CONST})));
+        assert(check("9ul", ((v_t){TOK_NUM_CONST})));
+        assert(check("9lu", ((v_t){TOK_NUM_CONST})));
+        assert(check("9LL", ((v_t){TOK_NUM_CONST})));
+        assert(check("9ll", ((v_t){TOK_NUM_CONST})));
+        assert(check("912345", ((v_t){TOK_NUM_CONST})));
+        assert(check("912345LL", ((v_t){TOK_NUM_CONST})));
+        assert(check("912345LLu", ((v_t){TOK_NUM_CONST})));
+        assert(check("912345uLL", ((v_t){TOK_NUM_CONST})));
+        assert(check("912345ull", ((v_t){TOK_NUM_CONST})));
+        assert(check("9", ((v_t){TOK_NUM_CONST})));
+        assert(check("9ul", ((v_t){TOK_NUM_CONST})));
+        assert(check("9lu", ((v_t){TOK_NUM_CONST})));
+        assert(check("9LL", ((v_t){TOK_NUM_CONST})));
+        assert(check("9ll", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xb12345", ((v_t){TOK_NUM_CONST})));
+        assert(check("0Xb12345LL", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xB12345LLu", ((v_t){TOK_NUM_CONST})));
+        assert(check("0Xb12345uLL", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xB12345ull", ((v_t){TOK_NUM_CONST})));
 
         // Floatings.
-        assert(check("0.f", ((T){TOK_NUM_CONST})));
-        assert(check("0.F", ((T){TOK_NUM_CONST})));
-        assert(check("0.l", ((T){TOK_NUM_CONST})));
-        assert(check("0.L", ((T){TOK_NUM_CONST})));
-        assert(check(".1f", ((T){TOK_NUM_CONST})));
-        assert(check(".2L", ((T){TOK_NUM_CONST})));
-        assert(check("0.1", ((T){TOK_NUM_CONST})));
-        assert(check("0.1f", ((T){TOK_NUM_CONST})));
-        assert(check("0.1L", ((T){TOK_NUM_CONST})));
-        assert(check("0.1e-2", ((T){TOK_NUM_CONST})));
-        assert(check("0.1e+2", ((T){TOK_NUM_CONST})));
-        assert(check("0.1e2", ((T){TOK_NUM_CONST})));
-        assert(check("0.1e+2f", ((T){TOK_NUM_CONST})));
-        assert(check("0.1E-2L", ((T){TOK_NUM_CONST})));
-        assert(check("0xf.f", ((T){TOK_NUM_CONST})));
-        assert(check("0xf.", ((T){TOK_NUM_CONST})));
-        assert(check("0xF.L", ((T){TOK_NUM_CONST})));
-        assert(check("0xf.f", ((T){TOK_NUM_CONST})));
-        assert(check("0xF.L", ((T){TOK_NUM_CONST})));
-        assert(check("0xf.ap-3", ((T){TOK_NUM_CONST})));
-        assert(check("0xf.ap+3", ((T){TOK_NUM_CONST})));
-        assert(check("0xf.ap3", ((T){TOK_NUM_CONST})));
-        assert(check("0xF.aP+3L", ((T){TOK_NUM_CONST})));
-        assert(check("0xf.aP-3f", ((T){TOK_NUM_CONST})));
-        assert(check("0xF.aP+3L", ((T){TOK_NUM_CONST})));
-        assert(check("0xfe+", ((T){TOK_NUM_CONST, PN_PLUS})));
+        assert(check("0.f", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.F", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.l", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.L", ((v_t){TOK_NUM_CONST})));
+        assert(check(".1f", ((v_t){TOK_NUM_CONST})));
+        assert(check(".2L", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.1", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.1f", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.1L", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.1e-2", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.1e+2", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.1e2", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.1e+2f", ((v_t){TOK_NUM_CONST})));
+        assert(check("0.1E-2L", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xf.f", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xf.", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xF.L", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xf.f", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xF.L", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xf.ap-3", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xf.ap+3", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xf.ap3", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xF.aP+3L", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xf.aP-3f", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xF.aP+3L", ((v_t){TOK_NUM_CONST})));
+        assert(check("0xfe+", ((v_t){TOK_NUM_CONST, PN_PLUS})));
     }
 
     test("character constants");
     {
-        assert(check("''", ((T){TOK_CHAR_CONST})));
-        assert(check("L''", ((T){TOK_CHAR_CONST})));
-        assert(check("'n'", ((T){TOK_CHAR_CONST})));
-        assert(check("L'n'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\\\'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\''", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\n'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\0'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\01'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\012'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\x1'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\x12'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\u1234'", ((T){TOK_CHAR_CONST})));
-        assert(check("'", ((T){TOK_UNKNOWN})));
-        assert(check("'\n", ((T){TOK_UNKNOWN})));
-        assert(check("'\\u1234", ((T){TOK_UNKNOWN})));
-        assert(check("'\\u1234\n", ((T){TOK_UNKNOWN})));
+        assert(check("''", ((v_t){TOK_CHAR_CONST})));
+        assert(check("L''", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'n'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("L'n'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\\\'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\''", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\n'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\0'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\01'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\012'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\x1'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\x12'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\u1234'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'", ((v_t){TOK_UNKNOWN})));
+        assert(check("'\n", ((v_t){TOK_UNKNOWN})));
+        assert(check("'\\u1234", ((v_t){TOK_UNKNOWN})));
+        assert(check("'\\u1234\n", ((v_t){TOK_UNKNOWN})));
     }
 
     test("strings");
     {
-        assert(check("\"\"", ((T){TOK_STRING})));
-        assert(check("L\"\"", ((T){TOK_STRING})));
-        assert(check("\"n\"", ((T){TOK_STRING})));
-        assert(check("L\"n\"", ((T){TOK_STRING})));
-        assert(check("\"\\\\\"", ((T){TOK_STRING})));
-        assert(check("\"\\n\"", ((T){TOK_STRING})));
-        assert(check("\"\\0\"", ((T){TOK_STRING})));
-        assert(check("\"\\01\"", ((T){TOK_STRING})));
-        assert(check("\"\\012\"", ((T){TOK_STRING})));
-        assert(check("\"\\x1\"", ((T){TOK_STRING})));
-        assert(check("\"\\x12\"", ((T){TOK_STRING})));
-        assert(check("\"\\u1234\"", ((T){TOK_STRING})));
-        assert(check("\"", ((T){TOK_UNKNOWN})));
-        assert(check("\"\n", ((T){TOK_UNKNOWN})));
-        assert(check("\"\\u1234", ((T){TOK_UNKNOWN})));
-        assert(check("\"\\u1234\n", ((T){TOK_UNKNOWN})));
+        assert(check("\"\"", ((v_t){TOK_STRING})));
+        assert(check("L\"\"", ((v_t){TOK_STRING})));
+        assert(check("\"n\"", ((v_t){TOK_STRING})));
+        assert(check("L\"n\"", ((v_t){TOK_STRING})));
+        assert(check("\"\\\\\"", ((v_t){TOK_STRING})));
+        assert(check("\"\\n\"", ((v_t){TOK_STRING})));
+        assert(check("\"\\0\"", ((v_t){TOK_STRING})));
+        assert(check("\"\\01\"", ((v_t){TOK_STRING})));
+        assert(check("\"\\012\"", ((v_t){TOK_STRING})));
+        assert(check("\"\\x1\"", ((v_t){TOK_STRING})));
+        assert(check("\"\\x12\"", ((v_t){TOK_STRING})));
+        assert(check("\"\\u1234\"", ((v_t){TOK_STRING})));
+        assert(check("\"", ((v_t){TOK_UNKNOWN})));
+        assert(check("\"\n", ((v_t){TOK_UNKNOWN})));
+        assert(check("\"\\u1234", ((v_t){TOK_UNKNOWN})));
+        assert(check("\"\\u1234\n", ((v_t){TOK_UNKNOWN})));
     }
 
     test("header names");
     {
         assert(check("#include <test.h>",
-                     ((T){PN_HASH, PP_INCLUDE, TOK_HEADER_NAME})));
+                     ((v_t){PN_HASH, PP_INCLUDE, TOK_HEADER_NAME})));
         assert(check("#include \"test.h\"",
-                     ((T){PN_HASH, PP_INCLUDE, TOK_HEADER_NAME})));
+                     ((v_t){PN_HASH, PP_INCLUDE, TOK_HEADER_NAME})));
         assert(check("#include <test.h",
-                     ((T){PN_HASH, PP_INCLUDE, TOK_UNKNOWN})));
+                     ((v_t){PN_HASH, PP_INCLUDE, TOK_UNKNOWN})));
         assert(check("#include \"test.h",
-                     ((T){PN_HASH, PP_INCLUDE, TOK_UNKNOWN})));
+                     ((v_t){PN_HASH, PP_INCLUDE, TOK_UNKNOWN})));
     }
 
     test("comments");
     {
-        assert(check("// test comment", ((T){TOK_COMMENT})));
-        assert(check("//", ((T){TOK_COMMENT})));
-        assert(check("//\n", ((T){TOK_COMMENT})));
-        assert(check("/**/", ((T){TOK_COMMENT})));
-        assert(check("/* test comment */", ((T){TOK_COMMENT})));
-        assert(check("/** test \n comment */", ((T){TOK_COMMENT})));
-        assert(check("/*/", ((T){TOK_UNKNOWN})));
-        assert(check("/*", ((T){TOK_UNKNOWN})));
-        assert(check("/*\n", ((T){TOK_UNKNOWN})));
-        assert(check("/* test\n", ((T){TOK_UNKNOWN})));
+        assert(check("// test comment", ((v_t){TOK_COMMENT})));
+        assert(check("//", ((v_t){TOK_COMMENT})));
+        assert(check("//\n", ((v_t){TOK_COMMENT})));
+        assert(check("/**/", ((v_t){TOK_COMMENT})));
+        assert(check("/* test comment */", ((v_t){TOK_COMMENT})));
+        assert(check("/** test \n comment */", ((v_t){TOK_COMMENT})));
+        assert(check("/*/", ((v_t){TOK_UNKNOWN})));
+        assert(check("/*", ((v_t){TOK_UNKNOWN})));
+        assert(check("/*\n", ((v_t){TOK_UNKNOWN})));
+        assert(check("/* test\n", ((v_t){TOK_UNKNOWN})));
     }
 
     test("backslash + newline");
     {
-        assert(check("a\\\nb", ((T){TOK_IDENTIFIER})));
-        assert(check("a\\\rb", ((T){TOK_IDENTIFIER})));
-        assert(check("a\\\r\nb", ((T){TOK_IDENTIFIER})));
-        assert(check("a\\  \nb", ((T){TOK_IDENTIFIER})));
-        assert(check("a\\  \r\nb", ((T){TOK_IDENTIFIER})));
-        assert(check("\"a\\\nb\"", ((T){TOK_STRING})));
-        assert(check("\"a\\\r\nb\"", ((T){TOK_STRING})));
-        assert(check("'\\\\\n0'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\\\\r\n0'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\\\  \n0'", ((T){TOK_CHAR_CONST})));
-        assert(check("'\\\\  \r\n0'", ((T){TOK_CHAR_CONST})));
+        assert(check("a\\\nb", ((v_t){TOK_IDENTIFIER})));
+        assert(check("a\\\rb", ((v_t){TOK_IDENTIFIER})));
+        assert(check("a\\\r\nb", ((v_t){TOK_IDENTIFIER})));
+        assert(check("a\\  \nb", ((v_t){TOK_IDENTIFIER})));
+        assert(check("a\\  \r\nb", ((v_t){TOK_IDENTIFIER})));
+        assert(check("\"a\\\nb\"", ((v_t){TOK_STRING})));
+        assert(check("\"a\\\r\nb\"", ((v_t){TOK_STRING})));
+        assert(check("'\\\\\n0'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\\\\r\n0'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\\\  \n0'", ((v_t){TOK_CHAR_CONST})));
+        assert(check("'\\\\  \r\n0'", ((v_t){TOK_CHAR_CONST})));
         assert(check("1000  \\   \n + \\\n 20",
-            ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
+            ((v_t){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
         assert(check("1000  \\   \r\n + \\\r\n 20",
-            ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
+            ((v_t){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
         assert(check("1+ \\\n\\\n\\\n 2",
-            ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
+            ((v_t){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
         assert(check("1+ \\\r\n\\\r\n\\\r\n 2",
-            ((T){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
+            ((v_t){TOK_NUM_CONST, PN_PLUS, TOK_NUM_CONST})));
     }
 }

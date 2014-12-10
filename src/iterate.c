@@ -405,7 +405,7 @@ const char *stringify_type(enum type_e type)
         "comp-literal", "comp-member"
     };
 
-    assert(0 <= type && type < sizeof(words)/sizeof(*words));
+    assert(0 <= type && type < sizeof(words) / sizeof(*words));
     return words[type];
 }
 
@@ -418,7 +418,7 @@ const char *stringify_kind(enum token_e kind)
 #undef XX
     };
 
-    assert(0 <= kind && kind < sizeof(words)/sizeof(*words));
+    assert(0 <= kind && kind < sizeof(words) / sizeof(*words));
     return words[kind];
 }
 

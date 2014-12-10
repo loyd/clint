@@ -297,68 +297,67 @@ static bool is_aligned(toknum_t i)
 }
 
 
-static void check_tokens(void)
+static void check_token(toknum_t i)
 {
-    for (toknum_t i = 2; i < vec_len(g_tokens) - 1; ++i)
-        switch (g_tokens[i].kind)
-        {
-            case KW_IF:
-            case KW_ELSE:
-            case KW_WHILE:
-            case KW_DO:
-            case KW_FOR:
-            case KW_SWITCH:
-                // Case "else if".
-                if (g_tokens[i].kind == KW_IF && g_tokens[i-1].kind != KW_ELSE)
-                    check_newline_before(i, newline_before_control, "control");
+    switch (g_tokens[i].kind)
+    {
+        case KW_IF:
+        case KW_ELSE:
+        case KW_WHILE:
+        case KW_DO:
+        case KW_FOR:
+        case KW_SWITCH:
+            // Case "else if".
+            if (g_tokens[i].kind == KW_IF && g_tokens[i - 1].kind != KW_ELSE)
+                check_newline_before(i, newline_before_control, "control");
 
-                check_space_before(i, before_control, "control");
-                check_space_after(i, after_control, "control");
-                break;
+            check_space_before(i, before_control, "control");
+            check_space_after(i, after_control, "control");
+            break;
 
-            case KW_STRUCT:
-            case KW_UNION:
-            case KW_ENUM:
-                check_space_after(i, after_control, "keyword");
-                break;
+        case KW_STRUCT:
+        case KW_UNION:
+        case KW_ENUM:
+            check_space_after(i, after_control, "keyword");
+            break;
 
-            case PN_COMMA:
-                check_space_before(i, before_comma, "comma");
+        case PN_COMMA:
+            check_space_before(i, before_comma, "comma");
 
-                if (g_tokens[i + 1].kind != PN_RBRACE &&
-                    g_tokens[i + 1].kind != PN_RSQUARE &&
-                    !is_aligned(i + 1))
-                    check_space_after(i, after_comma, "comma");
-                break;
+            if (g_tokens[i + 1].kind != PN_RBRACE &&
+                g_tokens[i + 1].kind != PN_RSQUARE &&
+                !is_aligned(i + 1))
+                check_space_after(i, after_comma, "comma");
+            break;
 
-            case PN_LPAREN:
-                check_space_after(i, after_left_paren, "parenthesis");
-                break;
+        case PN_LPAREN:
+            check_space_after(i, after_left_paren, "parenthesis");
+            break;
 
-            case PN_RPAREN:
-                check_space_before(i, before_right_paren, "parenthesis");
-                break;
+        case PN_RPAREN:
+            check_space_before(i, before_right_paren, "parenthesis");
+            break;
 
-            case PN_LSQUARE:
-                check_space_after(i, after_left_square, "parenthesis");
-                break;
+        case PN_LSQUARE:
+            check_space_after(i, after_left_square, "parenthesis");
+            break;
 
-            case PN_RSQUARE:
-                check_space_before(i, before_right_square, "parenthesis");
-                break;
+        case PN_RSQUARE:
+            check_space_before(i, before_right_square, "parenthesis");
+            break;
 
-            case PN_SEMI:
-                if (g_tokens[i + 1].kind != PN_LPAREN &&
-                    g_tokens[i + 1].kind != PN_SEMI)
-                    check_space_before(i, before_semicolon, "semicolon");
+        case PN_SEMI:
+            if (g_tokens[i + 1].kind != PN_LPAREN &&
+                g_tokens[i + 1].kind != PN_SEMI)
+                check_space_before(i, before_semicolon, "semicolon");
 
-                if (g_tokens[i + 1].kind != PN_RPAREN &&
-                    g_tokens[i + 1].kind != PN_SEMI)
-                    check_space_after(i, after_semicolon, "semicolon");
+            if (g_tokens[i + 1].kind != PN_RPAREN &&
+                g_tokens[i + 1].kind != PN_SEMI)
+                check_space_after(i, after_semicolon, "semicolon");
 
-            default:
-                break;
-        }
+        default:
+            break;
+    }
 }
 
 
@@ -547,7 +546,9 @@ static void process_pointer(struct pointer_s *tree)
 
 static void check(void)
 {
-    check_tokens();
+    for (toknum_t i = 2; i < vec_len(g_tokens) - 1; ++i)
+        check_token(i);
+
     iterate_by_type(BLOCK, process_block);
     iterate_by_type(UNARY, process_unary);
     iterate_by_type(BINARY, process_binary);

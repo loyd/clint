@@ -91,13 +91,14 @@ void vec_expand_if_need(void **vec_ptr)
 {
     assert(vec_ptr);
     size_t *vec = *((size_t **)vec_ptr);
+    size_t elem_sz, capacity, len;
 
     if (vec[-1] != vec[-2])
         return;
 
-    size_t elem_sz = vec[-3];
-    size_t capacity = vec[-2] * 2;
-    size_t len = vec[-1];
+    elem_sz = vec[-3];
+    capacity = vec[-2] * 2;
+    len = vec[-1];
 
     vec = xrealloc(vec - 3, VEC_HEADER_SIZE + elem_sz * capacity);
     vec[0] = elem_sz;
@@ -202,6 +203,11 @@ static void print_with_ansi(const char *str, const char *style)
 
 static void print_error(error_t *error)
 {
+    assert(error->line < vec_len(g_lines));
+    unsigned line_len, line_from, line_to, line_width;
+    char *pointer;
+    unsigned pointer_sz;
+
     if (g_log_mode & LOG_SHORTLY)
     {
         print_message(error->message);
@@ -210,9 +216,6 @@ static void print_error(error_t *error)
         fprintf(stderr, " (%u:%u)\n", error->line, error->column);
         return;
     }
-
-    assert(error->line < vec_len(g_lines));
-    unsigned line_len, line_from, line_to, line_width;
 
     line_len = get_line_len(error->line);
     assert(error->column <= line_len);
@@ -225,10 +228,11 @@ static void print_error(error_t *error)
 
     line_width = count_signs(line_to + 1);
 
-    char pointer[2 + line_width + 3 + error->column + 2];
-    memset(pointer, '-', sizeof(pointer) - 2);
-    pointer[sizeof(pointer) - 2] = '^';
-    pointer[sizeof(pointer) - 1] = '\0';
+    pointer_sz = 2 + line_width + 3 + error->column + 2;
+    pointer = xmalloc(pointer_sz);
+    memset(pointer, '-', pointer_sz - 2);
+    pointer[pointer_sz - 2] = '^';
+    pointer[pointer_sz - 1] = '\0';
 
     print_message(error->message);
     fprintf(stderr, " at ");

@@ -100,7 +100,6 @@ static void check_name(toknum_t toknum, bool strict, char *prefix, char *suffix)
             add_warn_at(token->start, "Leading underscore is disallowed");
 
     if (style == UNDER_SCORE)
-    {
         for (char *pos = token->start.pos + plen;
              pos <= token->end.pos - slen; ++pos)
             if (!islower(*pos) && *pos != '_')
@@ -108,7 +107,6 @@ static void check_name(toknum_t toknum, bool strict, char *prefix, char *suffix)
                 add_warn_at(token->start, "Required under_score style");
                 break;
             }
-    }
 
     if (strict && minimum_length)
         if (token->end.pos - token->start.pos + 1 < minimum_length)
@@ -151,13 +149,14 @@ static void process_decl(struct declaration_s *tree)
     struct specifiers_s *specs = (void *)tree->specs;
     bool is_global = false;
     bool is_typedef = false;
+    bool strict;
 
     if (!specs)
         return;
 
-    bool strict = !(allow_short_on_top && is_global ||
-                    allow_short_in_loop && tree->parent->type == FOR ||
-                    allow_short_in_block && !is_global);
+    strict = !(allow_short_on_top && is_global ||
+               allow_short_in_loop && tree->parent->type == FOR ||
+               allow_short_in_block && !is_global);
 
     check_dirtype(specs->dirtype, strict);
 
