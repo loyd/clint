@@ -102,7 +102,7 @@ static void check_name(toknum_t toknum, bool strict, char *prefix, char *suffix)
     if (style == UNDER_SCORE)
         for (char *pos = token->start.pos + plen;
              pos <= token->end.pos - slen; ++pos)
-            if (!islower(*pos) && *pos != '_')
+            if (!(islower(*pos) || isdigit(*pos) || *pos == '_'))
             {
                 add_warn_at(token->start, "Required under_score style");
                 break;
