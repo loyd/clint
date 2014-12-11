@@ -213,7 +213,7 @@ static void print_error(error_t *error)
         print_message(error->message);
         fprintf(stderr, " at ");
         print_filename(g_filename);
-        fprintf(stderr, " (%u:%u)\n", error->line, error->column);
+        fprintf(stderr, " (%u:%u)\n", error->line + 1, error->column + 1);
         return;
     }
 
