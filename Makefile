@@ -34,6 +34,9 @@ run-test: $(COMMON) test/*
 src/%.o: src/%.c src/*.h
 	$(CC) -c $(CFLAGS) $< -o $@
 
-.PHONY: clean
+.PHONY: lint clean
+lint: clint
+	./clint -s src rules test
+
 clean:
 	$(RM) -f src/*.o clint run-test clint.exe run-test.exe
