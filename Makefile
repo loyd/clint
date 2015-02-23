@@ -4,39 +4,36 @@ CFLAGS := -pedantic -Werror -Wall -Wextra -Wshadow -Wundef -Wunreachable-code \
           -Winit-self -Wbad-function-cast -Wstrict-overflow=3 -Wpointer-arith \
           -Wold-style-definition -Wmissing-declarations -Wmissing-prototypes  \
           -Wstrict-prototypes -Wnested-externs -Wwrite-strings -Wwrite-strings\
-          -Wno-unused-parameter -Wno-missing-field-initializers
-
-ifneq (,$(findstring clang,$(CC)))
-	CFLAGS += -Wno-logical-op-parentheses -Wno-dangling-else
-endif
-
-ifneq (,$(findstring gcc,$(CC)))
-	CFLAGS += -Wno-parentheses -Wno-sign-compare
-endif
+          -Wno-missing-field-initializers -Wno-sign-compare -Wno-parentheses  \
+          -Wno-logical-op-parentheses -Wno-unused-parameter -Wno-unused-value \
+          -Wno-dangling-else
 
 CFLAGS += -DVERSION=\"$(shell cat VERSION)\"
 CFLAGS += -D_XOPEN_SOURCE=500
-CFLAGS += -Ideps/json-parser
 CFLAGS += -iquotesrc
+CFLAGS += -Ideps/json-parser
 
 RM := rm
 
-COMMON := src/state.o src/utils.o src/iterate.o src/lexer.o src/parser.o
+PROGOBJS := $(wildcard src/*.c rules/*.c) deps/json-parser/json.c
+TESTOBJS := $(filter-out src/cli.c,$(PROGOBJS) $(wildcard test/*.c))
 
 
-clint: $(COMMON) deps/json-parser/json.c rules/*.c src/rules.c src/cli.c
+clint: $(PROGOBJS:.c=.o)
 	$(CC) -lm $(CFLAGS) $^ -o $@
 
-run-test: $(COMMON) test/*
-	$(CC) $(CFLAGS) $(COMMON) $(wildcard test/*.c) -o $@
+run-test: $(TESTOBJS:.c=.o)
+	$(CC) -lm $(CFLAGS) $^ -o $@
 	./$@
 
-src/%.o: src/%.c src/*.h
+%.o: %.c */*.h
 	$(CC) -c $(CFLAGS) $< -o $@
+
+test/test-parser.o: test/test-parser.txt
 
 .PHONY: lint clean
 lint: clint
 	./clint -s src rules test
 
 clean:
-	$(RM) -f src/*.o clint run-test clint.exe run-test.exe
+	$(RM) -f */*.o */*/*.o clint run-test clint.exe run-test.exe
