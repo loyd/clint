@@ -39,6 +39,7 @@ extern char *g_filename;        //!< Name of the current file.
 extern char *g_data;            //!< Content of the current file.
 extern line_t *g_lines;         //!< Pointers to starts of line.
 extern tree_t g_tree;           //!< Tree of the current file.
+extern bool g_cached;           //!< The tree is cached or not.
 extern token_t *g_tokens;       //!< 1-indexed consumed tokens.
 extern error_t *g_errors;       //!< Errors and warnings.
 extern json_value *g_config;    //!< Root of the config file.

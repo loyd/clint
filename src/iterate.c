@@ -337,7 +337,6 @@ static inline void iterate_node_inner(void *raw, before_t before, after_t after)
 
 
 static struct {
-    tree_t root;
     enum type_e type;
     tree_t *cache[COMP_MEMBER + 1];
 } iterator = {0};
@@ -370,9 +369,9 @@ void (iterate_by_type)(enum type_e type, visitor_t cb)
 {
     assert(cb);
 
-    if (iterator.root != g_tree)
+    if (!g_cached)
     {
-        iterator.root = g_tree;
+        g_cached = true;
         for (int i = 0; i <= COMP_MEMBER; ++i)
         {
             free_vec(iterator.cache[i]);
