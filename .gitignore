@@ -1,0 +1,5 @@
+*.o
+clint
+clint.exe
+run-test
+run-test.exe
