@@ -51,16 +51,23 @@ extern json_value *g_config;    //!< Root of the config file.
 //!@{
 struct rule_s {
     const char *name;
-    void (*configure)(json_value *config);
+    void (*configure)(void);
     void (*check)(void);
+    json_value *config;
 };
 
 #define REGISTER_RULE(name, configure, check)                                 \
-    struct rule_s name ## _rule = {#name, configure, check}
+    struct rule_s name ## _rule = {#name, configure, check, NULL}
 
 extern bool configure_rules(void);
-extern bool check_rules(void);
-extern json_value *json_get(json_value *obj, const char *key, json_type type);
+extern void check_rules(void);
+
+extern void cfg_fatal(const char *prop, const char *message);
+extern json_type cfg_typeof(const char *prop);
+extern bool cfg_boolean(const char *prop);
+extern char *cfg_string(const char *prop);
+extern unsigned cfg_natural(const char *prop);
+extern char **cfg_strings(const char *prop);
 //!@}
 
 extern void reset_state(void);

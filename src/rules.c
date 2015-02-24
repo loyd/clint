@@ -18,59 +18,125 @@ RULES(XX)
 #undef XX
 
 
-static jmp_buf cnfbuf;
+static jmp_buf cfgbuf;
 static struct rule_s *current;
 
 
-static const char *stringify_json_type(json_type type)
+static json_value *json_get(json_value *obj, const char *prop)
 {
-    switch (type)
-    {
-        case json_none:    return "none";
-        case json_object:  return "object";
-        case json_array:   return "array";
-        case json_integer: return "integer";
-        case json_double:  return "double";
-        case json_string:  return "string";
-        case json_boolean: return "boolean";
-        case json_null:    return "null";
-    }
+    assert(obj && obj->type == json_object);
 
-    assert(0);
+    for (unsigned i = 0; i < obj->u.object.length; ++i)
+        if (!strcmp(prop, obj->u.object.values[i].name))
+            return obj->u.object.values[i].value;
+
+    return NULL;
 }
 
 
-json_value *json_get(json_value *obj, const char *key, json_type type)
+void cfg_fatal(const char *prop, const char *message)
 {
-    assert(obj);
+    fprintf(stderr, "\"%s\" %s.\n", prop, message);
+    longjmp(cfgbuf, 1);
+}
 
-    if (obj->type != json_object)
+
+json_type cfg_typeof(const char *prop)
+{
+    json_value *value = json_get(current->config, prop);
+    return value ? value->type : json_none;
+}
+
+
+bool cfg_boolean(const char *prop)
+{
+    json_value *value = json_get(current->config, prop);
+
+    if (!value)
+        return false;
+
+    if (value->type != json_boolean)
+        cfg_fatal(prop, "must be a boolean");
+
+    return value->u.boolean;
+}
+
+
+char *cfg_string(const char *prop)
+{
+    json_value *value = json_get(current->config, prop);
+
+    if (!value)
+        return NULL;
+
+    if (value->type != json_string)
+        cfg_fatal(prop, "must be a string");
+
+    return value->u.string.ptr;
+}
+
+
+unsigned cfg_natural(const char *prop)
+{
+    json_value *value = json_get(current->config, prop);
+
+    if (!value)
+        return 0;
+
+    if (value->type != json_integer || value->u.integer < 0)
+        cfg_fatal(prop, "must be a natural number");
+
+    return value->u.boolean;
+}
+
+
+char **cfg_strings(const char *prop)
+{
+    json_value *value = json_get(current->config, prop);
+    unsigned len;
+    char **res;
+
+    if (!value)
+        return NULL;
+
+    if (value->type != json_array)
+        cfg_fatal(prop, "must be an array of strings");
+
+    len = value->u.array.length;
+    res = new_vec(char *, len);
+
+    for (unsigned i = 0; i < len; ++i)
     {
-        fprintf(stderr, "\"%s\" must be object.\n", current->name);
-        longjmp(cnfbuf, 1);
+        json_value *item = value->u.array.values[i];
+
+        if (item->type != json_string)
+        {
+            free_vec(res);
+            cfg_fatal(prop, "must contain only strings");
+        }
+
+        vec_push(res, item->u.string.ptr);
     }
 
-    for (unsigned i = 0; i < obj->u.object.length; ++i)
-        if (!strcmp(key, obj->u.object.values[i].name))
-            if (!type || obj->u.object.values[i].value->type == type)
-                return obj->u.object.values[i].value;
-            else
-            {
-                fprintf(stderr, "\"%s:%s\" must be %s.\n", current->name,
-                        key, stringify_json_type(type));
-                longjmp(cnfbuf, 1);
-            }
-
-    return NULL;
+    return res;
 }
 
 
 bool configure_rules(void)
 {
 #define XX(name)                                                              \
-    (current = &name ## _rule)->configure(json_get(g_config, #name, json_none));
+    current = &name ## _rule;                                                 \
+    if ((current->config = json_get(g_config, #name)))                        \
+    {                                                                         \
+        if (current->config->type != json_object)                             \
+        {                                                                     \
+            current->config = NULL;                                           \
+            cfg_fatal(#name, "must be an object");                            \
+        }                                                                     \
+        current->configure();                                                 \
+    }
 
-    if (!setjmp(cnfbuf))
+    if (!setjmp(cfgbuf))
     {
         RULES(XX)
         return true;
@@ -81,10 +147,12 @@ bool configure_rules(void)
 }
 
 
-bool check_rules(void)
+void check_rules(void)
 {
-#define XX(name) (current = &name ## _rule)->check();
+#define XX(name)                                                              \
+    if ((name ## _rule).config)                                               \
+        (name ## _rule).check();
+
     RULES(XX)
 #undef XX
-    return true;
 }

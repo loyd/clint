@@ -3,10 +3,10 @@
 
 #include "clint.h"
 
-static bool require_threadsafe_fn = false;
-static bool require_safe_fn = false;
-static bool require_sized_int = false;
-static bool require_sizeof_as_fn = false;
+static bool require_threadsafe_fn;
+static bool require_safe_fn;
+static bool require_sized_int;
+static bool require_sizeof_as_fn;
 
 
 #define MAX_WORD_SZ 15
@@ -38,21 +38,12 @@ static char unsafe[][2][MAX_WORD_SZ] = {
 };
 
 
-static void configure(json_value *config)
+static void configure(void)
 {
-    json_value *value;
-
-    if ((value = json_get(config, "require-threadsafe-fn", json_boolean)))
-        require_threadsafe_fn = value->u.boolean;
-
-    if ((value = json_get(config, "require-safe-fn", json_boolean)))
-        require_safe_fn = value->u.boolean;
-
-    if ((value = json_get(config, "require-sized-int", json_boolean)))
-        require_sized_int = value->u.boolean;
-
-    if ((value = json_get(config, "require-sizeof-as-fn", json_boolean)))
-        require_sizeof_as_fn = value->u.boolean;
+    require_threadsafe_fn = cfg_boolean("require-threadsafe-fn");
+    require_safe_fn = cfg_boolean("require-safe-fn");
+    require_sized_int = cfg_boolean("require-sized-int");
+    require_sizeof_as_fn = cfg_boolean("require_sizeof_as_fn");
 }
 
 

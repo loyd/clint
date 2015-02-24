@@ -5,69 +5,41 @@
 #include "clint.h"
 
 // Default settings.
-static char *global_var_prefix = NULL;
-static char *global_fn_prefix = NULL;
-static char *typedef_suffix = NULL;
-static char *struct_suffix = NULL;
-static char *union_suffix = NULL;
-static char *enum_suffix = NULL;
-static enum {NONE, UNDER_SCORE} style = NONE;
-static int minimum_length = 0;
-static bool allow_short_on_top = true;
-static bool allow_short_in_loop = true;
-static bool allow_short_in_block = true;
-static bool disallow_leading_underscore = true;
+static char *global_var_prefix;
+static char *global_fn_prefix;
+static char *typedef_suffix;
+static char *struct_suffix;
+static char *union_suffix;
+static char *enum_suffix;
+static enum {NONE, UNDER_SCORE} style;
+static int minimum_length;
+static bool disallow_short_on_top;
+static bool disallow_short_in_loop;
+static bool disallow_short_in_block;
+static bool disallow_leading_underscore;
 
 
-static void configure(json_value *config)
+static void configure(void)
 {
-    json_value *value;
+    char *require_style = cfg_string("require-style");
+    if (!require_style || !strcmp("none", require_style))
+        style = NONE;
+    else if (!strcmp("under_score", require_style))
+        style = UNDER_SCORE;
+    else
+        cfg_fatal("require-style", "incorrect style");
 
-    if ((value = json_get(config, "global-var-prefix", json_string)))
-        if (value->u.string.length > 0)
-            global_var_prefix = value->u.string.ptr;
-
-    if ((value = json_get(config, "global-fn-prefix", json_string)))
-        if (value->u.string.length > 0)
-            global_fn_prefix = value->u.string.ptr;
-
-    if ((value = json_get(config, "typedef-suffix", json_string)))
-        if (value->u.string.length > 0)
-            typedef_suffix = value->u.string.ptr;
-
-    if ((value = json_get(config, "struct-suffix", json_string)))
-        if (value->u.string.length > 0)
-            struct_suffix = value->u.string.ptr;
-
-    if ((value = json_get(config, "union-suffix", json_string)))
-        if (value->u.string.length > 0)
-            union_suffix = value->u.string.ptr;
-
-    if ((value = json_get(config, "enum-suffix", json_string)))
-        if (value->u.string.length > 0)
-            enum_suffix = value->u.string.ptr;
-
-    if ((value = json_get(config, "require-style", json_string)))
-        if (!strcmp("none", value->u.string.ptr))
-            style = NONE;
-        else if (!strcmp("under_score", value->u.string.ptr))
-            style = UNDER_SCORE;
-
-    if ((value = json_get(config, "minimum-length", json_integer)))
-        if (value->u.integer)
-            minimum_length = value->u.integer;
-
-    if ((value = json_get(config, "allow-short-on-top", json_boolean)))
-        allow_short_on_top = value->u.boolean;
-
-    if ((value = json_get(config, "allow-short-in-loop", json_boolean)))
-        allow_short_in_loop = value->u.boolean;
-
-    if ((value = json_get(config, "allow-short-in-block", json_boolean)))
-        allow_short_in_block = value->u.boolean;
-
-    if ((value = json_get(config, "disallow-leading-underscore", json_boolean)))
-        disallow_leading_underscore = value->u.boolean;
+    global_var_prefix = cfg_string("global-var-prefix");
+    global_fn_prefix = cfg_string("global-fn-prefix");
+    typedef_suffix = cfg_string("typedef-suffix");
+    struct_suffix = cfg_string("struct-suffix");
+    union_suffix = cfg_string("union-suffix");
+    enum_suffix = cfg_string("enum-suffix");
+    minimum_length = cfg_natural("minimum-length");
+    disallow_short_on_top = cfg_boolean("disallow-short-on-top");
+    disallow_short_in_loop = cfg_boolean("disallow-short-in-loop");
+    disallow_short_in_block = cfg_boolean("disallow-short-in-block");
+    disallow_leading_underscore = cfg_boolean("disallow-leading-underscore");
 }
 
 
@@ -154,9 +126,9 @@ static void process_decl(struct declaration_s *tree)
     if (!specs)
         return;
 
-    strict = !(allow_short_on_top && is_global ||
-               allow_short_in_loop && tree->parent->type == FOR ||
-               allow_short_in_block && !is_global);
+    strict = !(!disallow_short_on_top && is_global ||
+               !disallow_short_in_loop && tree->parent->type == FOR ||
+               !disallow_short_in_block && !is_global);
 
     check_dirtype(specs->dirtype, strict);
 
@@ -202,8 +174,8 @@ static void process_fn_def(struct function_def_s *tree)
     bool with_prefix = g_tokens[specs->storage].kind != KW_STATIC &&
                        !is_main(decl->name);
 
-    check_dirtype(specs->dirtype, allow_short_on_top);
-    check_name(decl->name, !allow_short_on_top,
+    check_dirtype(specs->dirtype, !disallow_short_on_top);
+    check_name(decl->name, disallow_short_on_top,
                with_prefix ? global_fn_prefix : NULL, NULL);
 }
 

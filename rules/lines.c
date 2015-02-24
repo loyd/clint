@@ -4,32 +4,20 @@
 #include "clint.h"
 
 // Defaults settings.
-static unsigned maximum_length = -1;
-static bool disallow_trailing_space = false;
-static bool require_newline_at_eof = false;
-static const char *line_break = NULL;
-static unsigned line_break_length;
+static unsigned maximum_length;
+static bool disallow_trailing_space;
+static bool require_newline_at_eof;
+static const char *line_break;
 
 
-static void configure(json_value *config)
+static void configure(void)
 {
-    json_value *value;
+    if ((maximum_length = cfg_natural("maximum-length")) == 0)
+        maximum_length = -1;
 
-    if ((value = json_get(config, "maximum-length", json_integer)))
-        if (value->u.integer > 0)
-            maximum_length = value->u.integer;
-
-    if ((value = json_get(config, "disallow-trailing-space", json_boolean)))
-        disallow_trailing_space = value->u.boolean;
-
-    if ((value = json_get(config, "require-line-break", json_string)))
-    {
-        line_break = value->u.string.ptr;
-        line_break_length = value->u.string.length;
-    }
-
-    if ((value = json_get(config, "require-newline-at-eof", json_boolean)))
-        require_newline_at_eof = value->u.boolean;
+    disallow_trailing_space = cfg_boolean("disallow-trailing-space");
+    line_break = cfg_string("require-line-break");
+    require_newline_at_eof = cfg_boolean("require-newline-at-eof");
 }
 
 
@@ -48,6 +36,7 @@ static unsigned utf8_len(const char *line, unsigned size)
 static void check(void)
 {
     bool check_lb = !!line_break;
+    unsigned lb_length = check_lb ? strlen(line_break) : 0;
     unsigned i = 0;
     const char *line;
     unsigned length;
@@ -75,7 +64,7 @@ static void check(void)
                      "Line must be at most %d characters", maximum_length);
 
         if (check_lb && line[length])
-            if (strncmp(line + length, line_break, line_break_length))
+            if (strncmp(line + length, line_break, lb_length))
             {
                 add_warn(i, length, "Invalid line break");
                 check_lb = false;

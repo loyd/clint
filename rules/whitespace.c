@@ -2,85 +2,84 @@
 
 #include "clint.h"
 
-enum {NONE, DISALLOWED, REQUIRED};
+enum {NONE = -1, DISALLOWED, REQUIRED};
 
-static int after_control = NONE;
-static int before_control = NONE;
-static int before_comma = NONE;
-static int after_comma = NONE;
-static int after_left_paren = NONE;
-static int before_right_paren = NONE;
-static int after_left_square = NONE;
-static int before_right_square = NONE;
-static int before_semicolon = NONE;
-static int after_semicolon = NONE;
-static int require_block_on_newline = NONE;
-static int newline_before_members = NONE;
-static int newline_before_block = NONE;
-static int newline_before_control = NONE;
-static int newline_before_fn_body = NONE;
-static int between_unary_and_operand = NONE;
-static int around_binary = NONE;
-static int around_bitwise = NONE;
-static int around_assignment = NONE;
-static int around_accessor = NONE;
-static int in_conditional = NONE;
-static int after_cast = NONE;
-static int in_call = NONE;
-static int after_name_in_fn_def = NONE;
-static int before_declarator_name = NONE;
-static int before_members = NONE;
+static int after_control;
+static int before_control;
+static int before_comma;
+static int after_comma;
+static int after_left_paren;
+static int before_right_paren;
+static int after_left_square;
+static int before_right_square;
+static int before_semicolon;
+static int after_semicolon;
+static int require_block_on_newline;
+static int newline_before_members;
+static int newline_before_block;
+static int newline_before_control;
+static int newline_before_fn_body;
+static int between_unary_and_operand;
+static int around_binary;
+static int around_bitwise;
+static int around_assignment;
+static int around_accessor;
+static int in_conditional;
+static int after_cast;
+static int in_call;
+static int after_name_in_fn_def;
+static int before_declarator_name;
+static int before_members;
 
-static bool allow_alignment = false;
+static bool allow_alignment;
 
-static enum {FREE, MIDDLE, TYPE, DECL} pointer_place = FREE;
+static enum {FREE, MIDDLE, TYPE, DECL} pointer_place;
 
 
-static void configure(json_value *config)
+static void configure(void)
 {
-    json_value *value;
+    char *pointer_place_str = cfg_string("pointer-place");
+    if (!pointer_place_str || !strcmp("free", pointer_place_str))
+        pointer_place = FREE;
+    else if (!strcmp("declarator", pointer_place_str))
+        pointer_place = DECL;
+    else if (!strcmp("type", pointer_place_str))
+        pointer_place = TYPE;
+    else if (!strcmp("middle", pointer_place_str))
+        pointer_place = MIDDLE;
+    else
+        cfg_fatal("pointer-place",
+            "must be \"free\", \"declarator\", \"type\" or \"middle\"");
 
-#define bind_option(name, string)                                             \
-    if ((value = json_get(config, string, json_boolean)))                     \
-        name = value->u.boolean + 1
+#define option(prop) cfg_typeof(prop) == json_none ? NONE : cfg_boolean(prop)
+    after_control             = option("after-control");
+    before_control            = option("before-control");
+    before_comma              = option("before-comma");
+    after_comma               = option("after-comma");
+    after_left_paren          = option("after-left-paren");
+    before_right_paren        = option("before-right-paren");
+    after_left_square         = option("after-left-square");
+    before_right_square       = option("before-right-square");
+    before_semicolon          = option("before-semicolon");
+    after_semicolon           = option("after-semicolon");
+    require_block_on_newline  = option("require-block-on-newline");
+    newline_before_members    = option("newline-before-members");
+    newline_before_block      = option("newline-before-block");
+    newline_before_control    = option("newline-before-control");
+    newline_before_fn_body    = option("newline-before-fn-body");
+    between_unary_and_operand = option("between-unary-and-operand");
+    around_binary             = option("around-binary");
+    around_bitwise            = option("around-bitwise");
+    around_assignment         = option("around-assignment");
+    around_accessor           = option("around-accessor");
+    in_conditional            = option("in-conditional");
+    after_cast                = option("after-cast");
+    in_call                   = option("in-call");
+    after_name_in_fn_def      = option("after-name-in-fn-def");
+    before_declarator_name    = option("before-declarator-name");
+    before_members            = option("before-members");
 
-    bind_option(after_control,             "after-control");
-    bind_option(before_control,            "before-control");
-    bind_option(before_comma,              "before-comma");
-    bind_option(after_comma,               "after-comma");
-    bind_option(after_left_paren,          "after-left-paren");
-    bind_option(before_right_paren,        "before-right-paren");
-    bind_option(after_left_square,         "after-left-square");
-    bind_option(before_right_square,       "before-right-square");
-    bind_option(before_semicolon,          "before-semicolon");
-    bind_option(after_semicolon,           "after-semicolon");
-    bind_option(require_block_on_newline,  "require-block-on-newline");
-    bind_option(newline_before_members,    "newline-before-members");
-    bind_option(newline_before_block,      "newline-before-block");
-    bind_option(newline_before_control,    "newline-before-control");
-    bind_option(newline_before_fn_body,    "newline-before-fn-body");
-    bind_option(between_unary_and_operand, "between-unary-and-operand");
-    bind_option(around_binary,             "around-binary");
-    bind_option(around_bitwise,            "around-bitwise");
-    bind_option(around_assignment,         "around-assignment");
-    bind_option(around_accessor,           "around-accessor");
-    bind_option(in_conditional,            "in-conditional");
-    bind_option(after_cast,                "after-cast");
-    bind_option(in_call,                   "in-call");
-    bind_option(after_name_in_fn_def,      "after-name-in-fn-def");
-    bind_option(before_declarator_name,    "before-declarator-name");
-    bind_option(before_members,            "before-members");
-
-    if ((value = json_get(config, "allow-alignment", json_boolean)))
-        allow_alignment = value->u.boolean;
-
-    if ((value = json_get(config, "pointer-place", json_string)))
-        if (!strcmp("declarator", value->u.string.ptr))
-            pointer_place = DECL;
-        else if (!strcmp("type", value->u.string.ptr))
-            pointer_place = TYPE;
-        else if (!strcmp("middle", value->u.string.ptr))
-            pointer_place = MIDDLE;
+    allow_alignment = cfg_boolean("allow-alignment");
 }
 
 
@@ -90,7 +89,7 @@ static void check_space_before(toknum_t i, int mode, const char *where)
     const char *msg = NULL;
     int diff;
 
-    if (!mode)
+    if (mode == -1)
         return;
 
     start = &g_tokens[i].start;
@@ -122,7 +121,7 @@ static void check_space_after(toknum_t i, int mode, const char *where)
     const char *msg = NULL;
     int diff;
 
-    if (!mode)
+    if (mode == -1)
         return;
 
     end = &g_tokens[i].end;
@@ -152,7 +151,7 @@ static void check_newline_before(toknum_t i, int mode, const char *where)
 {
     const char *msg = NULL;
 
-    if (!mode)
+    if (mode == -1)
         return;
 
     if (g_tokens[i].start.line == g_tokens[i - 1].end.line)
@@ -173,7 +172,7 @@ static void check_newline_after(toknum_t i, int mode, const char *where)
 {
     const char *msg = NULL;
 
-    if (!mode)
+    if (mode == -1)
         return;
 
     if (g_tokens[i].end.line == g_tokens[i + 1].start.line)
@@ -523,8 +522,8 @@ static void process_specifiers(struct specifiers_s *tree)
 
 static void process_pointer(struct pointer_s *tree)
 {
-    int before = (pointer_place != TYPE) + 1;
-    int after = (pointer_place != DECL) + 1;
+    int before = pointer_place != TYPE;
+    int after = pointer_place != DECL;
     toknum_t place = tree->specs ? tree->specs->end : tree->start;
     enum token_e next = g_tokens[place + 1].kind;
     enum token_e prev = g_tokens[tree->start - 1].kind;

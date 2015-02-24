@@ -11,9 +11,9 @@
         "enum-suffix": "_e",
         "require-style": "under_score",
         "minimum-length": 2,
-        "allow-short-on-top": false,
-        "allow-short-in-loop": true,
-        "allow-short-in-block": true,
+        "disallow-short-on-top": true,
+        "disallow-short-in-loop": false,
+        "disallow-short-in-block": false,
         "disallow-leading-underscore": true
     },
 
@@ -64,7 +64,7 @@
         "before-members": true,
         "pointer-place": "declarator",
 
-        "allow-alignment" : true
+        "allow-alignment": true
     },
 
     "block": {

@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <stdbool.h>
+#include <string.h>
 
 #include "clint.h"
 
@@ -9,32 +10,33 @@ static unsigned maximum_level = 0;
 static bool flat_switch = false;
 
 
-static void configure(json_value *config)
+static void configure(void)
 {
-    json_value *value;
+    switch (cfg_typeof("size"))
+    {
+        case json_none:
+            cfg_fatal("size", "is mandatory");
+            break;
 
-    if ((value = json_get(config, "size", json_none)))
-        if (value->type == json_integer)
-        {
-            if (value->u.integer > 0)
-            {
-                indent_size = value->u.integer;
-                indent_char = ' ';
-            }
-        }
-        else if (value->type == json_string)
-            if (value->u.string.ptr[0] == '\t' && !value->u.string.ptr[1])
+        case json_integer:
+            indent_size = cfg_natural("size");
+            indent_char = ' ';
+            break;
+
+        case json_string:
+            if (!strcmp("\t", cfg_string("size")))
             {
                 indent_size = 1;
                 indent_char = '\t';
+                break;
             }
 
-    if ((value = json_get(config, "maximum-level", json_integer)))
-        if (value->u.integer > 0)
-            maximum_level = value->u.integer;
+        default:
+            cfg_fatal("size", "must be \"\\t\" or number of spaces");
+    }
 
-    if ((value = json_get(config, "flat-switch", json_boolean)))
-        flat_switch = value->u.boolean;
+    maximum_level = cfg_natural("maximum-level");
+    flat_switch = cfg_boolean("flat-switch");
 }
 
 

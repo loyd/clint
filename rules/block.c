@@ -3,44 +3,23 @@
 
 #include "clint.h"
 
-static bool disallow_empty = false;
-static bool disallow_short = false;
-static bool disallow_oneline = false;
-static bool require_decls_on_top = false;
-static char **allow_before_decls = NULL;
+static bool disallow_empty;
+static bool disallow_short;
+static bool disallow_oneline;
+static bool require_decls_on_top;
+static char **allow_before_decls;
 
 
 #define start_of(tree) g_tokens[tree->start].start
 #define end_of(tree) g_tokens[tree->end].end
 
-static void configure(json_value *config)
+static void configure(void)
 {
-    json_value *value;
-
-    if ((value = json_get(config, "disallow-empty", json_boolean)))
-        disallow_empty = value->u.boolean;
-
-    if ((value = json_get(config, "disallow-short", json_boolean)))
-        disallow_short = value->u.boolean;
-
-    if ((value = json_get(config, "disallow-oneline", json_boolean)))
-        disallow_oneline = value->u.boolean;
-
-    if ((value = json_get(config, "require-decls-on-top", json_boolean)))
-        require_decls_on_top = value->u.boolean;
-
-    if ((value = json_get(config, "allow-before-decls", json_array)))
-    {
-        unsigned len = value->u.array.length;
-        allow_before_decls = new_vec(char *, len);
-
-        for (unsigned i = 0; i < len; ++i)
-        {
-            json_value *item = value->u.array.values[i];
-            if (item->type == json_string)
-                vec_push(allow_before_decls, item->u.string.ptr);
-        }
-    }
+    disallow_empty = cfg_boolean("disallow-empty");
+    disallow_short = cfg_boolean("disallow-short");
+    disallow_oneline = cfg_boolean("disallow-oneline");
+    require_decls_on_top = cfg_boolean("require-decls-on-top");
+    allow_before_decls = cfg_strings("allow-before-decls");
 }
 
 
@@ -73,7 +52,7 @@ static bool in_decl_area(tree_t tree)
     if (tree->type == DECLARATION)
         return true;
 
-    if (tree->type == CALL)
+    if (tree->type == CALL && allow_before_decls)
     {
         token_t *name = &g_tokens[tree->start];
         unsigned len = name->end.pos - name->start.pos + 1;
