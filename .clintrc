@@ -11,16 +11,16 @@
         "enum-suffix": "_e",
         "require-style": "under_score",
         "minimum-length": 2,
-        "disallow-short-on-top": true,
-        "disallow-short-in-loop": false,
-        "disallow-short-in-block": false,
+        "allow-short-on-top": false,
+        "allow-short-in-loop": true,
+        "allow-short-in-block": true,
         "disallow-leading-underscore": true
     },
 
     "lines": {
         "maximum-length": 80,
         "disallow-trailing-space": true,
-        // \n, \r\n or \n
+        // \n, \r\n or \r
         // "require-line-break": "\n",
         "require-newline-at-eof": true
     },

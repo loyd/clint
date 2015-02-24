@@ -1,10 +1,9 @@
 #include <ctype.h>
 #include <stdbool.h>
 #include <string.h>
-#include <stdio.h>
+
 #include "clint.h"
 
-// Default settings.
 static char *global_var_prefix;
 static char *global_fn_prefix;
 static char *typedef_suffix;
@@ -13,9 +12,9 @@ static char *union_suffix;
 static char *enum_suffix;
 static enum {NONE, UNDER_SCORE} style;
 static int minimum_length;
-static bool disallow_short_on_top;
-static bool disallow_short_in_loop;
-static bool disallow_short_in_block;
+static bool allow_short_on_top;
+static bool allow_short_in_loop;
+static bool allow_short_in_block;
 static bool disallow_leading_underscore;
 
 
@@ -36,9 +35,9 @@ static void configure(void)
     union_suffix = cfg_string("union-suffix");
     enum_suffix = cfg_string("enum-suffix");
     minimum_length = cfg_natural("minimum-length");
-    disallow_short_on_top = cfg_boolean("disallow-short-on-top");
-    disallow_short_in_loop = cfg_boolean("disallow-short-in-loop");
-    disallow_short_in_block = cfg_boolean("disallow-short-in-block");
+    allow_short_on_top = cfg_boolean("allow-short-on-top");
+    allow_short_in_loop = cfg_boolean("allow-short-in-loop");
+    allow_short_in_block = cfg_boolean("allow-short-in-block");
     disallow_leading_underscore = cfg_boolean("disallow-leading-underscore");
 }
 
@@ -126,9 +125,9 @@ static void process_decl(struct declaration_s *tree)
     if (!specs)
         return;
 
-    strict = !(!disallow_short_on_top && is_global ||
-               !disallow_short_in_loop && tree->parent->type == FOR ||
-               !disallow_short_in_block && !is_global);
+    strict = !(allow_short_on_top && is_global ||
+               allow_short_in_loop && tree->parent->type == FOR ||
+               allow_short_in_block && !is_global);
 
     check_dirtype(specs->dirtype, strict);
 
@@ -174,8 +173,8 @@ static void process_fn_def(struct function_def_s *tree)
     bool with_prefix = g_tokens[specs->storage].kind != KW_STATIC &&
                        !is_main(decl->name);
 
-    check_dirtype(specs->dirtype, !disallow_short_on_top);
-    check_name(decl->name, disallow_short_on_top,
+    check_dirtype(specs->dirtype, allow_short_on_top);
+    check_name(decl->name, !allow_short_on_top,
                with_prefix ? global_fn_prefix : NULL, NULL);
 }
 
