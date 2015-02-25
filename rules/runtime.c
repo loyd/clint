@@ -43,7 +43,7 @@ static void configure(void)
     require_threadsafe_fn = cfg_boolean("require-threadsafe-fn");
     require_safe_fn = cfg_boolean("require-safe-fn");
     require_sized_int = cfg_boolean("require-sized-int");
-    require_sizeof_as_fn = cfg_boolean("require_sizeof_as_fn");
+    require_sizeof_as_fn = cfg_boolean("require-sizeof-as-fn");
 }
 
 
