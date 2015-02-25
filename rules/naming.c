@@ -26,7 +26,7 @@ static void configure(void)
     else if (!strcmp("under_score", require_style))
         style = UNDER_SCORE;
     else
-        cfg_fatal("require-style", "incorrect style");
+        cfg_fatal("require-style", "contains incorrect style");
 
     global_var_prefix = cfg_string("global-var-prefix");
     global_fn_prefix = cfg_string("global-fn-prefix");
@@ -118,12 +118,13 @@ static void check_dirtype(tree_t dirtype, bool strict)
 static void process_decl(struct declaration_s *tree)
 {
     struct specifiers_s *specs = (void *)tree->specs;
-    bool is_global = false;
-    bool is_typedef = false;
-    bool strict;
+    bool is_global, is_typedef, strict;
 
-    if (!specs)
+    if (!specs || g_tokens[specs->storage].kind == KW_EXTERN)
         return;
+
+    is_global = tree->parent->type == TRANSL_UNIT && !specs->storage;
+    is_typedef = g_tokens[specs->storage].kind == KW_TYPEDEF;
 
     strict = !(allow_short_on_top && is_global ||
                allow_short_in_loop && tree->parent->type == FOR ||
@@ -133,11 +134,6 @@ static void process_decl(struct declaration_s *tree)
 
     if (!tree->decls)
         return;
-
-    if (tree->parent->type == TRANSL_UNIT && !specs->storage)
-        is_global = true;
-    else if (g_tokens[specs->storage].kind == KW_TYPEDEF)
-        is_typedef = true;
 
     for (unsigned i = 0; i < vec_len(tree->decls); ++i)
     {

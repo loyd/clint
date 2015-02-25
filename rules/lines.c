@@ -3,7 +3,6 @@
 
 #include "clint.h"
 
-// Defaults settings.
 static unsigned maximum_length;
 static bool disallow_trailing_space;
 static bool require_newline_at_eof;
