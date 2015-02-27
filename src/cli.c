@@ -235,8 +235,7 @@ static void process_file(const char *fpath)
         assert(action == CHECK);
         init_parser();
         parse();
-        if (!check_rules())
-            retval = IMPERFECT;
+        check_rules();
     }
 
     if (g_log_mode & LOG_SORTED)

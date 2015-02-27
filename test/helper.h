@@ -10,6 +10,7 @@
 
 extern void test_lexer(void);
 extern void test_parser(void);
+extern void test_rules(void);
 
 
 #define group(name) printf("\n> Group %s:\n", name);

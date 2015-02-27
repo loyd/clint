@@ -4,10 +4,10 @@
 
 #include "clint.h"
 
-static int indent_size = 0;
-static char indent_char = '\0';
-static unsigned maximum_level = 0;
-static bool flat_switch = false;
+static int indent_size;
+static char indent_char;
+static unsigned maximum_level;
+static bool flat_switch;
 
 
 static void configure(void)

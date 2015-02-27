@@ -62,7 +62,7 @@ static void configure(void)
     before_right_square       = option("before-right-square");
     before_semicolon          = option("before-semicolon");
     after_semicolon           = option("after-semicolon");
-    require_block_on_newline  = option("require-block-on-newline");
+    require_block_on_newline  = option("require-block-on-newline") * 2 - 1;
     newline_before_members    = option("newline-before-members");
     newline_before_block      = option("newline-before-block");
     newline_before_control    = option("newline-before-control");
@@ -390,6 +390,8 @@ static void process_unary(struct unary_s *tree)
     {
         if (g_tokens[tree->op + 1].kind == PN_LPAREN)
             check_space_before(tree->op + 1, in_call, "call");
+        else
+            check_space_after(tree->op, REQUIRED, "sizeof");
 
         return;
     }
@@ -449,7 +451,7 @@ static void process_conditional(struct conditional_s *tree)
 {
     toknum_t quest, colon;
 
-    if (!in_conditional)
+    if (in_conditional == NONE)
         return;
 
     quest = find_tok(PN_QUESTION, tree->cond->end, tree->then_br->start);

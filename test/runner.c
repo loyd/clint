@@ -12,6 +12,7 @@ int main(void)
 
     test_lexer();
     test_parser();
+    test_rules();
 
     return 0;
 }
